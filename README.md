@@ -25,7 +25,7 @@ npm workspaces; Node 22 or newer (developed on Node 24).
 
 ```bash
 npm install
-npm run dev            # API on :3000 and the UI on :5173 (proxies /api), real Claude runner
+npm run dev            # API on :3456 and the UI on :5173 (proxies /api), real Claude runner
 ```
 
 On a development machine the server stores everything in `./data/`. To let your own profile use your existing Claude Code login while developing (instead of a credential file), start it with `KATORI_AMBIENT_AUTH_PROFILE=<your profile id>`. Other profiles never use it.
@@ -56,12 +56,12 @@ The spare-device setup in commands, for Ubuntu on the home laptop:
    ```bash
    sudo KATORI_SUBNET=192.168.1.0/24 bash scripts/install.sh git@github.com:<you>/katori.git
    ```
-   This creates the `katori` user, `/var/lib/katori` (data), `/etc/katori/profiles` (credentials, mode 700), `/backup/katori`, installs Claude Code for the service user on the stable channel, builds, installs the systemd units, and opens SSH and port 3000 to your subnet only.
+   This creates the `katori` user, `/var/lib/katori` (data), `/etc/katori/profiles` (credentials, mode 700), `/backup/katori`, installs Claude Code for the service user on the stable channel, builds, installs the systemd units, and opens SSH and port 3456 to your subnet only.
 3. Load the reference tables (IFCT 2017 + INDB; downloaded at setup, never committed):
    ```bash
    katori import-reference
    ```
-4. Open `http://katori.local:3000` on each phone, create each profile, and add it to the home screen.
+4. Open `http://katori.local:3456` on each phone, create each profile, and add it to the home screen.
 5. AI access, per profile (a Claude plan sign-in is for one person's own use, so profiles never share one):
    - **Own Claude sign-in:** that person runs `claude setup-token` on their own computer with their own Pro or Max plan, then on the server: `katori set-credential <profile>` and paste the token.
    - **API key:** `katori set-credential <profile>` and paste a Claude Console key.

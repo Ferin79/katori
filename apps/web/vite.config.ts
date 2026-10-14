@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-const api = process.env.KATORI_API ?? 'http://localhost:3000';
+const api = process.env.KATORI_API ?? 'http://localhost:3456';
 
 export default defineConfig({
   plugins: [react()],

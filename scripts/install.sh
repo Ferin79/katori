@@ -47,10 +47,10 @@ systemctl enable --now katori katori-backup.timer
 if command -v ufw >/dev/null 2>&1; then
   SUBNET=${KATORI_SUBNET:-192.168.1.0/24}
   ufw allow from "$SUBNET" to any port 22 proto tcp
-  ufw allow from "$SUBNET" to any port 3000 proto tcp
+  ufw allow from "$SUBNET" to any port 3456 proto tcp
   ufw --force enable
 fi
 
 echo
-echo "Katori is running: http://$(hostname).local:3000"
+echo "Katori is running: http://$(hostname).local:3456"
 echo "Next: on each person's own computer run 'claude setup-token', then here: katori set-credential <profile>"

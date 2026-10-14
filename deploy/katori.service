@@ -11,8 +11,8 @@ User=katori
 Group=katori
 WorkingDirectory=/opt/katori
 Environment=NODE_ENV=production
-Environment=PORT=3000
-# LAN only: the firewall allows port 3000 from the home subnet. (With the Tailscale add-on,
+Environment=PORT=3456
+# LAN only: the firewall allows port 3456 from the home subnet. (With the Tailscale add-on,
 # set KATORI_HOST=127.0.0.1 so the tailnet address is the only way in.)
 Environment=KATORI_HOST=0.0.0.0
 Environment=KATORI_DATA_DIR=/var/lib/katori

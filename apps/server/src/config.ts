@@ -52,7 +52,7 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
 
   const cfg: Config = {
     host: process.env.KATORI_HOST ?? '0.0.0.0',
-    port: int('PORT', 3000),
+    port: int('PORT', 3456),
     dataDir,
     dbPath: path.isAbsolute(dbEnv) ? dbEnv : path.join(dataDir, dbEnv),
     photosDir: process.env.KATORI_PHOTOS_DIR ?? path.join(dataDir, 'photos'),
