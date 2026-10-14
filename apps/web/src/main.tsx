@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router';
 import { ApiError } from './api';
 import { App } from './App';
+import './lib/pwa'; // listens for the install prompt before the UI mounts
 import { ToastProvider } from './lib/useToast';
 import { ProfileProvider } from './profile';
 import './styles.css';

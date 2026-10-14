@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
+import { InstallHint } from '../components/Install';
 import { Banner, Card, ErrorNote, Loading } from '../components/ui';
 import { kcal } from '../lib/format';
 import { useToast } from '../lib/useToast';
@@ -66,6 +67,7 @@ export function Home() {
         <h1 data-testid="home-title">{current?.name}</h1>
         {d.minor && <span className="badge">Intake tracking</span>}
       </div>
+      <InstallHint />
       {d.today.toReview > 0 && (
         <Banner tone="info" testId="review-banner" title={`${d.today.toReview} meal${d.today.toReview > 1 ? 's' : ''} to review`}>
           <p>Check the estimate, fix anything off, and confirm.</p>

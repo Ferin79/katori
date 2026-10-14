@@ -81,7 +81,18 @@ export async function buildApp(cfg: Config, opts: { runner?: Runner; logger?: bo
   if (existsSync(indexHtml)) {
     // Wildcard: files are looked up per request, so a rebuild is served without a restart;
     // a missing file falls through to the not-found handler (SPA fallback below).
-    await app.register(fastifyStatic, { root: cfg.webDist, wildcard: true });
+    await app.register(fastifyStatic, {
+      root: cfg.webDist,
+      wildcard: true,
+      cacheControl: false,
+      // Hashed bundles never change, so cache them for good; the page shell, manifest and icons
+      // are revalidated so a home-screen app picks up a new version on its next launch.
+      setHeaders: (reply, filePath) => {
+        const hashed = filePath.includes(`${path.sep}assets${path.sep}`);
+        reply.header('cache-control', hashed ? 'public, max-age=31536000, immutable' : 'no-cache');
+        if (filePath.endsWith('.webmanifest')) reply.header('content-type', 'application/manifest+json; charset=utf-8');
+      },
+    });
   }
   app.setNotFoundHandler((req, reply) => {
     if (req.url.startsWith('/api/') || !existsSync(indexHtml) || req.method !== 'GET') {

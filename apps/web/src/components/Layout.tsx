@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api, ApiError, setUnlockToken } from '../api';
 import { initials } from '../lib/format';
+import { useUpdateAvailable } from '../lib/pwa';
 import { useProfiles } from '../profile';
 import { BodyIcon, ChartIcon, GearIcon, HomeIcon, LockIcon, PlusIcon } from './Icons';
 import { Banner } from './ui';
@@ -85,9 +86,24 @@ function PinPrompt() {
 function SystemBanners() {
   const { current } = useProfiles();
   const { data: system } = useQuery({ queryKey: ['system'], queryFn: api.system, refetchInterval: 5 * 60_000 });
+  const updated = useUpdateAvailable();
   const auth = current?.auth;
   return (
     <>
+      {updated && (
+        <Banner
+          tone="info"
+          title="Katori was updated"
+          testId="update-banner"
+          action={
+            <button className="btn btn-sm btn-primary" onClick={() => window.location.reload()} data-testid="update-reload">
+              Reload
+            </button>
+          }
+        >
+          <p>Reload to get the new version.</p>
+        </Banner>
+      )}
       {auth && (auth.status === 'signed_out' || auth.status === 'missing_credential') && (
         <Banner tone="error" title={auth.status === 'signed_out' ? `${current.name} is signed out of Claude` : `${current.name} has no AI sign-in yet`} testId="signin-banner">
           <p>{auth.message}</p>

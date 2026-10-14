@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ACTIVITY_LABELS, type AuthState, type HouseholdSettings, type ManualTargetInput } from '@katori/shared';
 import { api, setUnlockToken } from '../api';
+import { AppCard } from '../components/Install';
 import { Banner, Card, ErrorNote, Field, Loading, NumberInput, Segmented } from '../components/ui';
 import { dayMonth, kcal } from '../lib/format';
 import { useToast } from '../lib/useToast';
@@ -421,6 +422,7 @@ export function Settings() {
           <TargetsSection pid={pid} />
           <AiSection pid={pid} />
           <PinSection pid={pid} />
+          <AppCard />
           <SystemSection pid={pid} />
           <DangerSection pid={pid} />
         </>

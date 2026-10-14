@@ -21,4 +21,17 @@ for (const [file, size, rounded] of [
   await page.locator('svg').screenshot({ path: path.join(pub, file), omitBackground: true });
   console.log(`wrote ${file}`);
 }
+
+// Maskable: a full-bleed square with the artwork inside the central 80% safe zone, so Android
+// can crop it to a circle or squircle without cutting the bowl.
+{
+  const size = 512;
+  await page.setViewportSize({ width: size, height: size });
+  const inner = svg.replace('<svg ', `<svg width="${size * 0.8}" height="${size * 0.8}" `).replace('rx="112"', 'rx="0"');
+  await page.setContent(
+    `<html><body style="margin:0"><div id="m" style="width:${size}px;height:${size}px;background:#b9481a;display:grid;place-items:center">${inner}</div></body></html>`,
+  );
+  await page.locator('#m').screenshot({ path: path.join(pub, 'icon-maskable-512.png') });
+  console.log('wrote icon-maskable-512.png');
+}
 await browser.close();

@@ -144,6 +144,23 @@ body {
 body {
   min-height: 100dvh;
   overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* App-like touch: no double-tap zoom delay, no text selection on controls. */
+button,
+a,
+.chip,
+.pchip {
+  touch-action: manipulation;
+}
+.bottomnav,
+.btn,
+.chip,
+.pchip,
+.seg button {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 button,
@@ -310,6 +327,11 @@ main {
 }
 .bottomnav a.active {
   color: var(--accent);
+}
+.bottomnav .icon-wrap {
+  height: 32px;
+  display: grid;
+  place-items: center;
 }
 .bottomnav a.add-btn .icon-wrap {
   background: var(--accent);
