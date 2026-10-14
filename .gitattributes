@@ -1,0 +1,4 @@
+# LF everywhere: the shell scripts and systemd units run on the Linux home server.
+* text=auto eol=lf
+*.png binary
+*.jpg binary

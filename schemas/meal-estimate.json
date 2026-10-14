@@ -1,0 +1,56 @@
+{
+  "title": "MealEstimate",
+  "description": "An itemized estimate of one plate. Every dish, bread, rice, side and the cooking fat is its own line.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["items", "questions"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "portion", "grams", "kcal", "protein_g", "carbs_g", "fat_g", "fiber_g", "confidence", "myFoodId", "referenceId"],
+        "properties": {
+          "name": { "type": "string", "description": "Dish or item, e.g. \"Phulka roti\", \"Ghee in tadka\"" },
+          "portion": { "type": "string", "description": "Human portion, e.g. \"2 medium\", \"1 katori\", \"1 tsp\"" },
+          "grams": { "type": "number", "minimum": 0, "description": "Edible weight of this line in grams" },
+          "kcal": { "type": "number", "minimum": 0 },
+          "protein_g": { "type": "number", "minimum": 0 },
+          "carbs_g": { "type": "number", "minimum": 0 },
+          "fat_g": { "type": "number", "minimum": 0 },
+          "fiber_g": { "type": "number", "minimum": 0 },
+          "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+          "myFoodId": {
+            "type": ["string", "null"],
+            "description": "The id of the matching saved food from the system prompt, else null"
+          },
+          "referenceId": {
+            "type": ["string", "null"],
+            "description": "The id returned by the search_food lookup tool when its values were used, else null"
+          }
+        }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "maxItems": 2,
+      "description": "At most two short questions, only when confidence is low on something that changes calories a lot",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "options"],
+        "properties": {
+          "text": { "type": "string", "description": "e.g. \"Ghee or oil in the tadka?\"" },
+          "options": {
+            "type": "array",
+            "maxItems": 4,
+            "items": { "type": "string" },
+            "description": "2 to 4 short tap-to-answer choices"
+          }
+        }
+      }
+    }
+  }
+}

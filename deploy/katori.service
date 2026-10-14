@@ -1,0 +1,34 @@
+# /etc/systemd/system/katori.service
+# Starts on boot, restarts on crash, logs to journalctl (journalctl -u katori -f).
+[Unit]
+Description=Katori household calorie tracker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=katori
+Group=katori
+WorkingDirectory=/opt/katori
+Environment=NODE_ENV=production
+Environment=PORT=3000
+# LAN only: the firewall allows port 3000 from the home subnet. (With the Tailscale add-on,
+# set KATORI_HOST=127.0.0.1 so the tailnet address is the only way in.)
+Environment=KATORI_HOST=0.0.0.0
+Environment=KATORI_DATA_DIR=/var/lib/katori
+Environment=KATORI_CREDENTIALS_DIR=/etc/katori/profiles
+Environment=KATORI_BACKUP_DIR=/backup/katori
+Environment=KATORI_BACKUPS_EXPECTED=1
+Environment=KATORI_CLAUDE_BIN=/home/katori/.local/bin/claude
+Environment=PATH=/home/katori/.local/bin:/usr/local/bin:/usr/bin:/bin
+# Optional overrides (log level, model defaults) without editing this unit.
+EnvironmentFile=-/etc/katori/katori.env
+ExecStart=/usr/bin/node /opt/katori/apps/server/dist/index.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,15 @@
+# /etc/systemd/system/katori-backup.service (run nightly by katori-backup.timer)
+[Unit]
+Description=Katori nightly backup (database snapshot, photos, monthly CSV)
+
+[Service]
+Type=oneshot
+User=katori
+Group=katori
+Environment=KATORI_DATA_DIR=/var/lib/katori
+Environment=KATORI_BACKUP_DIR=/backup/katori
+# Optional second copies; set them in /etc/katori/katori.env:
+#   KATORI_BACKUP_USB=/media/katori-usb     (a mounted USB drive)
+#   KATORI_RCLONE_REMOTE=gdrive:katori      (an rclone remote: Google Drive, Dropbox or OneDrive)
+EnvironmentFile=-/etc/katori/katori.env
+ExecStart=/opt/katori/scripts/backup.sh

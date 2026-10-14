@@ -1,0 +1,36 @@
+{
+  "name": "@katori/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Fastify API, SQLite storage and the one-at-a-time Claude Code job runner.",
+  "bin": {
+    "katori": "./dist/cli.js"
+  },
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js",
+    "cli": "tsx src/cli.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@fastify/multipart": "^10.1.3",
+    "@fastify/static": "^10.1.6",
+    "@katori/shared": "*",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "better-sqlite3": "^13.0.3",
+    "drizzle-orm": "^0.45.4",
+    "fastify": "^5.12.7",
+    "fflate": "^0.8.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "drizzle-kit": "^0.31.11",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.15"
+  }
+}

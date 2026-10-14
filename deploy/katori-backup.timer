@@ -1,0 +1,11 @@
+# /etc/systemd/system/katori-backup.timer
+[Unit]
+Description=Nightly Katori backup
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

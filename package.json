@@ -1,0 +1,36 @@
+{
+  "name": "katori",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Private household calorie tracker: snap a plate, Claude Code itemizes it, you confirm.",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c blue,magenta \"npm:dev -w @katori/server\" \"npm:dev -w @katori/web\"",
+    "build": "npm run build -w @katori/web && npm run build -w @katori/server",
+    "start": "node apps/server/dist/index.js",
+    "katori": "node apps/server/dist/cli.js",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "npm run build && playwright test",
+    "test-server": "npm run build && node scripts/test-server.mjs",
+    "schema:check": "vitest run packages/shared/src/schemas.test.ts",
+    "db:generate": "npm run db:generate -w @katori/server",
+    "make:icons": "node scripts/make-icons.mjs",
+    "make:fixtures": "node scripts/make-fixtures.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^24.0.0",
+    "concurrently": "^9.2.1",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.4"
+  }
+}

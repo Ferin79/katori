@@ -1,0 +1,28 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Runtime data: the database, photos, job folders and credentials never go in git
+data/
+*.db
+*.db-wal
+*.db-shm
+.env
+*.env
+
+# Test output
+test-results/
+playwright-report/
+blob-report/
+.playwright-mcp/
+
+# Reference data with unsettled licensing (see PLAN.md, Accuracy section)
+reference-data/
+
+# Private, never in the public repo: the design notes and test report hold personal details
+PLAN.md
+TEST_REPORT.md
+docs/test-report/
+
+.DS_Store
+Thumbs.db
