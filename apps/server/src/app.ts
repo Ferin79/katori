@@ -79,7 +79,9 @@ export async function buildApp(cfg: Config, opts: { runner?: Runner; logger?: bo
 
   const indexHtml = path.join(cfg.webDist, 'index.html');
   if (existsSync(indexHtml)) {
-    await app.register(fastifyStatic, { root: cfg.webDist, wildcard: false });
+    // Wildcard: files are looked up per request, so a rebuild is served without a restart;
+    // a missing file falls through to the not-found handler (SPA fallback below).
+    await app.register(fastifyStatic, { root: cfg.webDist, wildcard: true });
   }
   app.setNotFoundHandler((req, reply) => {
     if (req.url.startsWith('/api/') || !existsSync(indexHtml) || req.method !== 'GET') {

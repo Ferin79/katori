@@ -105,8 +105,8 @@ function SystemBanners() {
 
 const NAV = [
   { to: '/', label: 'Home', icon: HomeIcon, end: true, testId: 'nav-home' },
-  { to: '/add', label: 'Add meal', icon: PlusIcon, end: false, testId: 'nav-add', add: true },
   { to: '/body', label: 'Body', icon: BodyIcon, end: false, testId: 'nav-body' },
+  { to: '/add', label: 'Add meal', icon: PlusIcon, end: false, testId: 'nav-add', add: true },
   { to: '/progress', label: 'Progress', icon: ChartIcon, end: false, testId: 'nav-progress' },
   { to: '/settings', label: 'Settings', icon: GearIcon, end: false, testId: 'nav-settings' },
 ];
