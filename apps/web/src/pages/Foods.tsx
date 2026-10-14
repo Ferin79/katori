@@ -102,7 +102,7 @@ export function Foods() {
             <div className="grow">
               <div className="title">{f.name}</div>
               <div className="meta">
-                {f.servingDesc} ({f.servingG} g) · P {num1(f.protein_g)} g{f.uses ? ` · used ${f.uses}× in 30 days` : ''}
+                {f.servingDesc}, {f.servingG} g, {num1(f.protein_g)} g protein{f.uses ? `, used ${f.uses} times this month` : ''}
               </div>
             </div>
             <div className="end">{kcal(f.kcal)} kcal</div>

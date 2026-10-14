@@ -16,6 +16,14 @@ test('Home cards: a profile seeded with 60 days renders every card without error
   }
   await expect(page.getByTestId('card-weight').locator('svg.recharts-surface')).toBeVisible();
   await expect(page.getByTestId('heatmap').locator('.cell[data-state="on"]').first()).toBeVisible();
+  // Macro tiles flip between grams left and grams eaten on each tap.
+  const protein = page.getByTestId('macro-protein');
+  await expect(protein).toContainText(/Protein (left|over)/);
+  await protein.click();
+  await expect(protein).toContainText('Protein eaten');
+  await expect(page.getByTestId('macro-carbs')).toContainText('Carbs eaten');
+  await protein.click();
+  await expect(protein).toContainText(/Protein (left|over)/);
   await expectNoHorizontalOverflow(page);
   for (const path of ['/add', '/body', '/progress', '/progress?view=journey', '/settings', '/settings/foods', '/settings/calibration']) {
     await page.goto(path);

@@ -1,12 +1,12 @@
-import { useState, type FormEvent } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router';
+import { Suspense, useState, type FormEvent } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api, ApiError, setUnlockToken } from '../api';
 import { initials } from '../lib/format';
 import { useUpdateAvailable } from '../lib/pwa';
 import { useProfiles } from '../profile';
-import { BodyIcon, ChartIcon, GearIcon, HomeIcon, LockIcon, PlusIcon } from './Icons';
-import { Banner } from './ui';
+import { ChartIcon, GearIcon, HomeIcon, LockIcon, PlusIcon, ScaleIcon } from './Icons';
+import { Banner, Loading } from './ui';
 
 function ProfileChips() {
   const { profiles, current, select } = useProfiles();
@@ -121,7 +121,7 @@ function SystemBanners() {
 
 const NAV = [
   { to: '/', label: 'Home', icon: HomeIcon, end: true, testId: 'nav-home' },
-  { to: '/body', label: 'Body', icon: BodyIcon, end: false, testId: 'nav-body' },
+  { to: '/body', label: 'Body', icon: ScaleIcon, end: false, testId: 'nav-body' },
   { to: '/add', label: 'Add meal', icon: PlusIcon, end: false, testId: 'nav-add', add: true },
   { to: '/progress', label: 'Progress', icon: ChartIcon, end: false, testId: 'nav-progress' },
   { to: '/settings', label: 'Settings', icon: GearIcon, end: false, testId: 'nav-settings' },
@@ -129,8 +129,9 @@ const NAV = [
 
 export function Layout() {
   const { locked } = useProfiles();
+  const { pathname } = useLocation();
   return (
-    <div className="app">
+    <div className={`app${pathname === '/' ? ' is-home' : ''}`}>
       <header className="topbar">
         <ProfileChips />
       </header>
@@ -139,7 +140,10 @@ export function Layout() {
       ) : (
         <main>
           <SystemBanners />
-          <Outlet />
+          {/* Keep the top bar and tabs on screen while a page's code loads. */}
+          <Suspense fallback={<Loading />}>
+            <Outlet />
+          </Suspense>
         </main>
       )}
       <nav className="bottomnav" aria-label="Main">
@@ -150,7 +154,7 @@ export function Layout() {
                 <span className="icon-wrap">
                   <Icon />
                 </span>
-                {label}
+                <span className="sr-only">{label}</span>
               </NavLink>
             </li>
           ))}

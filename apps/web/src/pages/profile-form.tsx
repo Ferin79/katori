@@ -146,7 +146,7 @@ export function BasicsFields({ d, set }: { d: Draft; set: Set }) {
         />
         <span className="hint">The calorie and body fat formulas differ by sex.</span>
       </div>
-      <Field label="Date of birth" htmlFor={dob} hint={age != null ? `Age ${age}${age < 18 ? ' · under 18: intake tracking only, no deficit and no body fat estimate' : ''}` : undefined}>
+      <Field label="Date of birth" htmlFor={dob} hint={age != null ? `Age ${age}.${age < 18 ? ' Under 18: intake tracking only, with no deficit and no body fat estimate.' : ''}` : undefined}>
         <input id={dob} className="input" type="date" max={today()} value={d.birthDate} onChange={(e) => set({ birthDate: e.target.value })} data-testid="ob-dob" />
       </Field>
       <div className="field">
@@ -378,8 +378,8 @@ export function AiFields({ d, set }: { d: Draft; set: Set }) {
     <div className="stack" role="radiogroup" aria-label="AI access">
       <p className="small muted">Each person's estimates run on their own AI access; profiles never borrow someone else's sign-in.</p>
       {AI_OPTIONS.map((o) => (
-        <label key={o.value} className="card row" style={{ alignItems: 'flex-start', cursor: 'pointer', boxShadow: 'none', borderColor: d.aiAccess === o.value ? 'var(--accent)' : undefined }}>
-          <input type="radio" name="ai" checked={d.aiAccess === o.value} onChange={() => set({ aiAccess: o.value })} data-testid={`ob-ai-${o.value}`} style={{ marginTop: 4, accentColor: 'var(--accent)' }} />
+        <label key={o.value} className="choice">
+          <input type="radio" name="ai" checked={d.aiAccess === o.value} onChange={() => set({ aiAccess: o.value })} data-testid={`ob-ai-${o.value}`} />
           <span>
             <strong>{o.title}</strong>
             <span className="small muted" style={{ display: 'block' }}>

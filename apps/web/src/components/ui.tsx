@@ -73,6 +73,36 @@ export function ChartCard({
   );
 }
 
+/** A heading that groups the panels below it, with an optional action on the right. */
+export function SectionHead({ title, sub, action }: { title: string; sub?: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="section-head">
+      <div>
+        <h2>{title}</h2>
+        {sub && <div className="sub">{sub}</div>}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+/** A few labelled figures in a row, e.g. "7-day average 1,411 kcal" next to "Target 2,044 kcal". */
+export function MiniStats({ items, testId }: { items: { k: string; v: ReactNode; u?: string; tone?: 'good' | 'bad'; testId?: string }[]; testId?: string }) {
+  return (
+    <dl className="mini-stats" data-testid={testId}>
+      {items.map((i) => (
+        <div key={i.k}>
+          <dt>{i.k}</dt>
+          <dd className={i.tone === 'good' ? 'delta-good' : i.tone === 'bad' ? 'delta-bad' : undefined} data-testid={i.testId}>
+            {i.v}
+            {i.u && <small>{i.u}</small>}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 export function Banner({ tone, title, children, testId, action }: { tone: 'warn' | 'error' | 'info'; title?: string; children?: ReactNode; testId?: string; action?: ReactNode }) {
   return (
     <div className={`banner banner-${tone}`} role={tone === 'info' ? 'status' : 'alert'} data-testid={testId}>

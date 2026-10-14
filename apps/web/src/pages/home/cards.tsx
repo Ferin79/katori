@@ -1,68 +1,111 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { Bar, CartesianGrid, ComposedChart, Line, LineChart, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, Bar, CartesianGrid, ComposedChart, Line, LineChart, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from 'recharts';
 import type { Dashboard, Meal } from '@katori/shared';
 import { api } from '../../api';
 import { axisProps, C, dayMs, first, gridProps, Legend, msToDate, niceTicks, Tip, type TipProps } from '../../components/charts';
-import { MacroBars, Ring } from '../../components/Meters';
-import { BowlIcon } from '../../components/Icons';
-import { Card, ChartCard } from '../../components/ui';
+import { ArcGauge, MiniRing } from '../../components/Meters';
+import { BowlIcon, FlameIcon, PlusIcon } from '../../components/Icons';
+import { Card, ChartCard, MiniStats, SectionHead } from '../../components/ui';
 import { clock, compact, dayMonth, dayShort, fullDate, kcal, kg, longDate, num1, pct, signed } from '../../lib/format';
 
 type D = Dashboard;
 
-export function TodayCard({ d }: { d: D }) {
+const weekday = (date: string) => new Date(`${date}T12:00`).toLocaleDateString('en-US', { weekday: 'long' });
+
+export function TodayCard({ d, isToday }: { d: D; isToday: boolean }) {
   const t = d.target;
   const eaten = d.today.totals.kcal;
   const left = d.today.remainingKcal;
+  const over = left != null && left < 0;
   return (
-    <Card title="Today" subtitle={fullDate(d.date)} testId="card-today">
-      <div className="row between wrap" style={{ alignItems: 'flex-end', marginBottom: 14 }}>
-        <div>
-          <span className="hero" data-testid="today-kcal">
-            {kcal(eaten)}
-          </span>
-          <span className="hero-unit" data-testid="today-target">
-            of {t ? kcal(t.kcal) : '–'} kcal
-          </span>
-        </div>
-        {left != null && (
-          <p className={left < 0 ? 'delta-bad' : ''} style={{ fontWeight: 650 }} data-testid="today-left">
-            {left >= 0 ? `${kcal(left)} kcal left` : `${kcal(-left)} kcal over`}
-          </p>
+    <section className="card goal-card" data-testid="card-today" aria-label={isToday ? "Today's goal" : weekday(d.date)}>
+      <div className="goal-top">
+        <h2>{isToday ? "Today's goal" : weekday(d.date)}</h2>
+        <span className="date">
+          {dayShort(d.date)}, {dayMonth(d.date)}
+        </span>
+      </div>
+      <ArcGauge value={eaten} target={t?.kcal ?? null} label={`Calories: ${kcal(eaten)} of ${t ? `${kcal(t.kcal)} kcal` : 'no target'}`} testId="gauge">
+        <span className="flame">
+          <FlameIcon />
+        </span>
+        {left != null ? (
+          <div data-testid="today-left" className={over ? 'over' : undefined}>
+            <span className="big" style={{ display: 'block' }}>
+              {kcal(Math.abs(left))}
+            </span>{' '}
+            <span className="lbl">{over ? 'kcal over' : 'kcal left'}</span>
+          </div>
+        ) : (
+          <div>
+            <span className="big" style={{ display: 'block' }}>
+              {kcal(eaten)}
+            </span>{' '}
+            <span className="lbl">kcal eaten</span>
+          </div>
         )}
+      </ArcGauge>
+      <div className="goal-figures">
+        <div className="fig">
+          <div className="k">Eaten</div>
+          <div className="v">
+            <span data-testid="today-kcal">{kcal(eaten)}</span>
+            <small>kcal</small>
+          </div>
+        </div>
+        <div className="fig">
+          <div className="k">Daily target</div>
+          <div className="v" data-testid="today-target">
+            {t ? kcal(t.kcal) : '–'}
+            <small>kcal</small>
+          </div>
+        </div>
       </div>
-      <div className="rings">
-        <Ring value={eaten} target={t?.kcal ?? null} colour={C.kcal} track={C.kcalTrack} label={t ? `${Math.round((eaten / t.kcal) * 100)}%` : '–'} sub="calories" testId="ring-kcal" />
-        <Ring
-          value={d.today.totals.protein_g}
-          target={t?.protein_g ?? null}
-          colour={C.protein}
-          track={C.proteinTrack}
-          label={`${Math.round(d.today.totals.protein_g)} g`}
-          sub={t ? `protein / ${t.protein_g} g` : 'protein'}
-          testId="ring-protein"
-        />
-      </div>
-    </Card>
+    </section>
   );
 }
 
-export function MacrosCard({ d }: { d: D }) {
+/** One tile per macro: grams left (or over) against the target, with a small ring. */
+export function MacroTiles({ d }: { d: D }) {
   const t = d.target;
   const x = d.today.totals;
+  const tiles = [
+    { key: 'protein', name: 'Protein', value: x.protein_g, target: t?.protein_g ?? null, colour: C.protein, track: 'var(--s-protein-track)' },
+    { key: 'carbs', name: 'Carbs', value: x.carbs_g, target: t?.carbs_g ?? null, colour: C.carbs, track: 'var(--s-carbs-track)' },
+    { key: 'fat', name: 'Fat', value: x.fat_g, target: t?.fat_g ?? null, colour: C.fat, track: 'var(--s-fat-track)' },
+    { key: 'fiber', name: 'Fiber', value: x.fiber_g, target: t?.fiber_g ?? null, colour: C.fiber, track: 'var(--s-fiber-track)' },
+  ];
+  // Tap any tile to flip the row between grams left and grams eaten so far.
+  const [showEaten, setShowEaten] = useState(false);
   return (
-    <Card title="Macros today" testId="card-macros">
-      <MacroBars
-        testId="macro-bars"
-        rows={[
-          { key: 'protein', name: 'Protein', value: x.protein_g, target: t?.protein_g ?? null, colour: C.protein },
-          { key: 'carbs', name: 'Carbs', value: x.carbs_g, target: t?.carbs_g ?? null, colour: C.carbs },
-          { key: 'fat', name: 'Fat', value: x.fat_g, target: t?.fat_g ?? null, colour: C.fat },
-          { key: 'fiber', name: 'Fiber', value: x.fiber_g, target: t?.fiber_g ?? null, colour: C.fiber },
-        ]}
-      />
-    </Card>
+    <div className="macro-tiles" data-testid="card-macros" role="group" aria-label="Macros">
+      {tiles.map((m) => {
+        const left = m.target != null ? m.target - m.value : null;
+        const over = left != null && left < 0;
+        const eatenView = showEaten || left == null;
+        const shown = eatenView ? m.value : Math.abs(left ?? 0);
+        const word = eatenView ? 'eaten' : over ? 'over' : 'left';
+        return (
+          <button
+            key={m.key}
+            type="button"
+            className={`macro-tile${over && !eatenView ? ' over' : ''}`}
+            data-testid={`macro-${m.key}`}
+            data-view={eatenView ? 'eaten' : 'left'}
+            aria-pressed={showEaten}
+            aria-label={`${m.name}: ${Math.round(shown)} g ${word}${m.target != null ? ` of ${m.target} g` : ''}. Tap to show ${showEaten ? 'grams left' : 'grams eaten'}.`}
+            onClick={() => setShowEaten((v) => !v)}
+          >
+            <span className="v">{Math.round(shown)}g</span>
+            <span className="l">
+              {m.name} {word}
+            </span>
+            <MiniRing frac={m.target ? m.value / m.target : 0} colour={m.colour} track={m.track} over={over} />
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -78,44 +121,67 @@ export function StatusBadge({ status }: { status: Meal['status'] }) {
 
 export function MealRow({ pid, m }: { pid: string; m: Meal }) {
   const [broken, setBroken] = useState(false);
+  const counted = m.status === 'confirmed' || m.status === 'estimated';
   return (
     <Link to={`/meal/${m.id}`} className="list-item" data-testid={`meal-row-${m.id}`}>
-      {m.hasPhoto && !broken ? <img className="thumb" src={api.mealPhotoUrl(pid, m.id)} alt="" onError={() => setBroken(true)} loading="lazy" /> : <span className="thumb"><BowlIcon /></span>}
+      {m.hasPhoto && !broken ? (
+        <img className="thumb" src={api.mealPhotoUrl(pid, m.id)} alt="" onError={() => setBroken(true)} loading="lazy" />
+      ) : (
+        <span className="thumb">
+          <BowlIcon />
+        </span>
+      )}
       <div className="grow">
         <div className="title">
-          {m.slot} <span className="muted small">· {clock(m.eatenAt)}</span>
+          {m.slot}
+          <span className="time">{clock(m.eatenAt)}</span>
         </div>
         <div className="meta">{m.items.length ? m.items.map((i) => i.name).join(', ') : m.note || 'No items yet'}</div>
       </div>
       <div className="end">
-        {m.status === 'confirmed' || m.status === 'estimated' ? <div style={{ fontWeight: 650 }}>{kcal(m.totals.kcal)}</div> : null}
-        <StatusBadge status={m.status} />
+        {counted && (
+          <span className="kcal">
+            {kcal(m.totals.kcal)}
+            <span className="muted small"> kcal</span>
+          </span>
+        )}
+        {m.status !== 'confirmed' && <StatusBadge status={m.status} />}
       </div>
     </Link>
   );
 }
 
-export function TodayMealsCard({ pid, d }: { pid: string; d: D }) {
+export function TodayMealsCard({ pid, d, isToday }: { pid: string; d: D; isToday: boolean }) {
+  // A past day's Add starts the meal on that day.
+  const addTo = isToday ? '/add' : `/add?date=${d.date}`;
+  const title = isToday ? "Today's meals" : `Meals on ${dayShort(d.date)} ${dayMonth(d.date)}`;
   return (
-    <Card
-      title="Meals today"
-      testId="card-meals"
-      actions={
-        <Link to="/add" className="btn btn-sm" data-testid="today-add-meal">
-          + Add
-        </Link>
-      }
-    >
+    <>
+      <SectionHead
+        title={title}
+        action={
+          <Link to={addTo} className="btn btn-sm btn-outline" data-testid="today-add-meal">
+            <PlusIcon width={18} height={18} /> Add
+          </Link>
+        }
+      />
       {d.today.meals.length === 0 ? (
-        <p className="muted">Nothing logged yet today.</p>
+        <section className="card" data-testid="card-meals" aria-label={title}>
+          <div className="empty" style={{ padding: '10px 0' }}>
+            <p>{isToday ? 'Nothing logged yet today.' : 'Nothing logged on this day.'}</p>
+            <Link to={addTo} className="btn btn-primary btn-sm">
+              Log a meal
+            </Link>
+          </div>
+        </section>
       ) : (
-        <div className="list">
+        <section className="meal-list" data-testid="card-meals" aria-label={title}>
           {d.today.meals.map((m) => (
             <MealRow key={m.id} pid={pid} m={m} />
           ))}
-        </div>
+        </section>
       )}
-    </Card>
+    </>
   );
 }
 
@@ -125,10 +191,18 @@ export function Last7Card({ d }: { d: D }) {
   return (
     <ChartCard
       title="Last 7 days"
-      subtitle={d.last7.avgKcal != null ? `7-day average ${kcal(d.last7.avgKcal)} kcal${d.target ? ` · target ${kcal(d.target.kcal)}` : ''}` : 'No complete days yet'}
+      subtitle={d.last7.avgKcal == null ? 'No complete days yet' : undefined}
       testId="card-last7"
       table={{ head: ['Day', 'kcal', 'Target'], rows: d.last7.days.map((x) => [`${dayShort(x.date)} ${dayMonth(x.date)}`, x.meals ? kcal(x.kcal) : '–', kcal(x.targetKcal)]) }}
     >
+      {d.last7.avgKcal != null && (
+        <MiniStats
+          items={[
+            { k: '7-day average', v: kcal(d.last7.avgKcal), u: 'kcal' },
+            ...(d.target ? [{ k: 'Target', v: kcal(d.target.kcal), u: 'kcal' }] : []),
+          ]}
+        />
+      )}
       <div className="chart">
         <ResponsiveContainer>
           <ComposedChart data={data} margin={{ top: 8, right: 4, bottom: 0, left: -12 }}>
@@ -149,9 +223,9 @@ export function Last7Card({ d }: { d: D }) {
                 ) : null
               }
             />
-            <Bar dataKey="kcal" fill={C.kcal} radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={false} />
+            <Bar dataKey="kcal" fill={C.kcal} radius={[6, 6, 0, 0]} maxBarSize={22} isAnimationActive={false} />
             <Line dataKey="targetKcal" type="stepAfter" stroke={C.ink2} strokeWidth={1.5} dot={false} isAnimationActive={false} />
-            {d.last7.avgKcal != null && <ReferenceLine y={d.last7.avgKcal} stroke={C.kcal} strokeOpacity={0.6} strokeWidth={1} />}
+            {d.last7.avgKcal != null && <ReferenceLine y={d.last7.avgKcal} stroke={C.kcal} strokeOpacity={0.7} strokeWidth={1.5} strokeDasharray="4 4" />}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -181,20 +255,20 @@ export function WeightCard({ d }: { d: D }) {
   const values = data.flatMap((p) => [p.weightKg, p.trendKg]).concat(w.goalKg != null ? [w.goalKg] : []);
   const lo = Math.floor(Math.min(...values) - 0.5);
   const hi = Math.ceil(Math.max(...values) + 0.5);
-  const subtitle = [
-    w.currentTrendKg != null && `Trend ${kg(w.currentTrendKg)}`,
-    w.weeklyRateKg != null && `${signed(w.weeklyRateKg, ' kg')}/week`,
-    w.projectedGoalDate && `goal by ${longDate(w.projectedGoalDate)}`,
-  ]
-    .filter(Boolean)
-    .join(' · ');
   return (
     <ChartCard
       title="Weight trend"
-      subtitle={subtitle}
       testId="card-weight"
       table={{ head: ['Date', 'Weigh-in', 'Trend'], rows: [...w.points].reverse().map((p) => [dayMonth(p.date), kg(p.weightKg), kg(p.trendKg)]) }}
     >
+      <MiniStats
+        testId="weight-figures"
+        items={[
+          ...(w.currentTrendKg != null ? [{ k: 'Trend', v: num1(w.currentTrendKg), u: 'kg' }] : []),
+          ...(w.weeklyRateKg != null ? [{ k: 'Per week', v: signed(w.weeklyRateKg), u: 'kg' }] : []),
+          ...(w.projectedGoalDate ? [{ k: 'Goal by', v: longDate(w.projectedGoalDate) }] : []),
+        ]}
+      />
       <div className="chart chart-tall">
         <ResponsiveContainer>
           <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
@@ -217,7 +291,14 @@ export function WeightCard({ d }: { d: D }) {
             />
             {w.goalKg != null && <ReferenceLine y={w.goalKg} stroke={C.ink2} strokeWidth={1} label={{ value: `Goal ${w.goalKg} kg`, position: 'insideBottomRight', fill: C.ink2, fontSize: 11 }} />}
             <Scatter dataKey="weightKg" fill={C.neutral} isAnimationActive={false} shape={(props: { cx?: number; cy?: number }) => <circle cx={props.cx} cy={props.cy} r={3} fill={C.neutral} />} />
-            <Line dataKey="trendKg" type="monotone" stroke={C.weight} strokeWidth={2} dot={false} isAnimationActive={false} />
+            <defs>
+              <linearGradient id="wfill-home" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={C.weight} stopOpacity={0.3} />
+                <stop offset="100%" stopColor={C.weight} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <Area dataKey="trendKg" type="monotone" stroke="none" fill="url(#wfill-home)" isAnimationActive={false} activeDot={false} />
+            <Line dataKey="trendKg" type="monotone" stroke={C.weight} strokeWidth={2.5} dot={false} isAnimationActive={false} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -430,14 +511,12 @@ export function StreakCard({ d }: { d: D }) {
   const rows = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   return (
     <Card title="Logging streak" testId="card-streak">
-      <div className="row" style={{ alignItems: 'baseline', marginBottom: 10 }}>
-        <span className="hero" style={{ fontSize: '2.4rem' }} data-testid="streak-current">
-          {d.streak.current}
-        </span>
-        <span className="muted">
-          day{d.streak.current === 1 ? '' : 's'} in a row · {d.streak.daysLogged30} of the last 30 days logged
-        </span>
-      </div>
+      <MiniStats
+        items={[
+          { k: 'Current streak', v: <span data-testid="streak-current">{d.streak.current}</span>, u: d.streak.current === 1 ? 'day' : 'days' },
+          { k: 'Last 30 days', v: d.streak.daysLogged30, u: 'logged' },
+        ]}
+      />
       <div className="heatmap" role="grid" aria-label="Calendar of logged days, last 12 weeks" data-testid="heatmap">
         {rows.map((r, ri) => (
           <div key={r} style={{ display: 'contents' }} role="row">
@@ -492,7 +571,7 @@ export function SlotsCard({ d }: { d: D }) {
               <div className="top">
                 <span className="key">{s.name}</span>
                 <span className="val">
-                  {kcal(s.avgKcal)} kcal <span className="muted">· {Math.round(s.share * 100)}%</span>
+                  {kcal(s.avgKcal)} kcal <span className="muted">({Math.round(s.share * 100)}%)</span>
                 </span>
               </div>
               <div className="bar-track">

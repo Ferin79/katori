@@ -1,68 +1,71 @@
-import { grams, kcal } from '../lib/format';
+import { useEffect, useState, type ReactNode } from 'react';
 
-/** A ring meter: the fill is the series colour, the track a lighter step of the same ramp. */
-export function Ring({ value, target, colour, track, label, sub, testId }: { value: number; target: number | null; colour: string; track: string; label: string; sub: string; testId: string }) {
-  const r = 46;
-  const c = 2 * Math.PI * r;
-  const frac = target ? Math.min(1, value / target) : 0;
+/** 0 on first paint, then the real value, so meters sweep in once instead of popping. */
+function useSweep(frac: number) {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setShown(frac));
+    return () => cancelAnimationFrame(id);
+  }, [frac]);
+  return shown;
+}
+
+// A 240° arc open at the bottom: from 150° round the top to 30° (SVG angles run clockwise).
+const CX = 100;
+const CY = 100;
+const R = 84;
+const at = (deg: number) => [CX + R * Math.cos((deg * Math.PI) / 180), CY + R * Math.sin((deg * Math.PI) / 180)] as const;
+const [SX, SY] = at(150);
+const [EX, EY] = at(30);
+const ARC = `M ${SX.toFixed(2)} ${SY.toFixed(2)} A ${R} ${R} 0 1 1 ${EX.toFixed(2)} ${EY.toFixed(2)}`;
+
+/** The daily goal: an ink arc that fills towards the calorie target, red once over it. */
+export function ArcGauge({ value, target, label, children, testId }: { value: number; target: number | null; label: string; children: ReactNode; testId?: string }) {
   const over = target != null && value > target;
+  const frac = target ? Math.min(1, value / target) : 0;
+  const shown = useSweep(frac);
   return (
-    <div className="ring-wrap" data-testid={testId} role="img" aria-label={`${label}: ${sub}`}>
-      <svg viewBox="0 0 112 112">
-        <circle cx="56" cy="56" r={r} fill="none" stroke={track} strokeWidth="10" />
-        <circle
-          cx="56"
-          cy="56"
-          r={r}
+    <div className="gauge" data-testid={testId}>
+      <svg viewBox="0 4 200 156" role="img" aria-label={label}>
+        <path d={ARC} fill="none" stroke="var(--s-kcal-track)" strokeWidth="16" strokeLinecap="round" />
+        <path
+          className="arc-fill"
+          d={ARC}
           fill="none"
-          stroke={over ? 'var(--critical)' : colour}
-          strokeWidth="10"
+          stroke={over ? 'var(--critical)' : 'var(--s-kcal)'}
+          strokeWidth="16"
           strokeLinecap="round"
-          strokeDasharray={`${frac * c} ${c}`}
+          pathLength={100}
+          strokeDasharray={`${shown * 100} 100`}
+          opacity={shown > 0 ? 1 : 0}
         />
       </svg>
-      <div className="ring-center">
-        <div className="v">{label}</div>
-        <div className="l">{sub}</div>
-      </div>
+      <div className="gauge-center">{children}</div>
     </div>
   );
 }
 
-export interface MacroRow {
-  key: string;
-  name: string;
-  value: number;
-  target: number | null;
-  colour: string;
-  unit?: 'g' | 'kcal';
-}
-
-/** Horizontal bars against targets, every bar labelled with its value (relief for light hues). */
-export function MacroBars({ rows, testId }: { rows: MacroRow[]; testId: string }) {
+/** A small ring in a macro's colour on its lighter track. */
+export function MiniRing({ frac, colour, track, over }: { frac: number; colour: string; track: string; over?: boolean }) {
+  const shown = useSweep(Math.min(1, Math.max(0, frac)));
+  const r = 16;
+  const c = 2 * Math.PI * r;
   return (
-    <div className="bar-rows" data-testid={testId}>
-      {rows.map((r) => {
-        const frac = r.target ? Math.min(1, r.value / r.target) : 0;
-        const fmt = r.unit === 'kcal' ? kcal : grams;
-        return (
-          <div className="bar-row" key={r.key} data-testid={`${testId}-${r.key}`}>
-            <div className="top">
-              <span className="key">
-                <span className="swatch" style={{ background: r.colour }} />
-                {r.name}
-              </span>
-              <span className="val">
-                {fmt(r.value)}
-                {r.target != null && <span className="muted"> / {fmt(r.target)}</span>}
-              </span>
-            </div>
-            <div className="bar-track" role="meter" aria-label={r.name} aria-valuemin={0} aria-valuemax={r.target ?? undefined} aria-valuenow={Math.round(r.value)}>
-              <div className="bar-fill" style={{ width: `${frac * 100}%`, background: r.colour }} />
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <svg className="mini-ring" viewBox="0 0 42 42" aria-hidden>
+      <circle cx="21" cy="21" r={r} fill="none" stroke={track} strokeWidth="5" />
+      <circle
+        className="fill"
+        cx="21"
+        cy="21"
+        r={r}
+        fill="none"
+        stroke={over ? 'var(--critical)' : colour}
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeDasharray={`${shown * c} ${c}`}
+        transform="rotate(-90 21 21)"
+        opacity={shown > 0 ? 1 : 0}
+      />
+    </svg>
   );
 }

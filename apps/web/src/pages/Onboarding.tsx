@@ -161,7 +161,10 @@ export function Onboarding({ first = false }: { first?: boolean }) {
     <div className="app">
       <header className="topbar">
         <div className="row between">
-          <strong>{first ? 'Welcome to Katori' : 'New profile'}</strong>
+          <span className="brand">
+            <img src="/icon.svg" alt="" width={28} height={28} />
+            {first ? 'Welcome to Katori' : 'New profile'}
+          </span>
           {!first && (
             <Link to="/" className="btn btn-ghost btn-sm" data-testid="ob-cancel">
               Cancel
@@ -170,6 +173,9 @@ export function Onboarding({ first = false }: { first?: boolean }) {
         </div>
       </header>
       <main>
+        <p className="small muted" style={{ margin: '4px 2px -6px' }}>
+          Step {step + 1} of {STEPS.length}
+        </p>
         <div className="steps" aria-label={`Step ${step + 1} of ${STEPS.length}`} data-testid="ob-progress">
           {STEPS.map((x, i) => (
             <span key={x.key} className={i <= step ? 'done' : ''} />
@@ -198,7 +204,7 @@ export function Onboarding({ first = false }: { first?: boolean }) {
               {error}
             </p>
           )}
-          <div className="btn-row">
+          <div className="btn-row sticky-actions bare">
             {step > 0 && (
               <button type="button" className="btn" onClick={() => setStep(step - 1)} data-testid="ob-back">
                 Back

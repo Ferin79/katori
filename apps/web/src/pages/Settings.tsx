@@ -40,7 +40,7 @@ function TargetsSection({ pid }: { pid: string }) {
   return (
     <Card
       title="Targets"
-      subtitle={c ? `${c.source === 'formula' ? 'Calculated' : c.source === 'learned' ? 'Learned from your trend' : 'Set by hand'} · since ${dayMonth(c.effectiveFrom)}` : undefined}
+      subtitle={c ? `${c.source === 'formula' ? 'Calculated' : c.source === 'learned' ? 'Learned from your trend' : 'Set by hand'} since ${dayMonth(c.effectiveFrom)}` : undefined}
       testId="settings-targets"
       actions={
         !editing && (
@@ -306,7 +306,7 @@ function SystemSection({ pid }: { pid: string }) {
         {sys?.backup.configured ? (
           <p data-testid="backup-status">
             {sys.backup.ok ? '✓' : '⚠'} Last backup {sys.backup.lastAt ? new Date(sys.backup.lastAt).toLocaleString() : 'never'}
-            {sys.backup.dest && <span className="small muted"> · {sys.backup.dest}</span>}
+            {sys.backup.dest && <span className="small muted" style={{ display: 'block' }}>{sys.backup.dest}</span>}
             {sys.backup.message && <span className="small delta-bad" style={{ display: 'block' }}>{sys.backup.message}</span>}
           </p>
         ) : (
@@ -401,7 +401,7 @@ export function Settings() {
         <>
           <Card
             title={p.name}
-            subtitle={`${p.sex === 'male' ? 'Male' : 'Female'}, ${p.age} · ${p.heightCm} cm · ${ACTIVITY_LABELS[p.activity]}`}
+            subtitle={`${p.sex === 'male' ? 'Male' : 'Female'}, ${p.age} years, ${p.heightCm} cm, ${ACTIVITY_LABELS[p.activity].toLowerCase()}`}
             testId="settings-profile"
             actions={
               <Link className="btn btn-sm" to="/settings/profile" data-testid="edit-profile">
@@ -409,10 +409,17 @@ export function Settings() {
               </Link>
             }
           >
-            <p className="small">
-              Goal: {p.goal === 'maintain' ? 'maintain' : `${p.goal} ${p.paceKgWeek} kg a week`}
-              {p.goalWeightKg ? ` to ${p.goalWeightKg} kg` : ''} · {p.diet.vegetarian ? `vegetarian${p.diet.eggs ? ' + eggs' : ''}` : 'non-vegetarian'} · meals: {p.mealSlots.map((s) => `${s.name} ${s.time}`).join(', ')}
-            </p>
+            <dl className="kv">
+              <dt>Goal</dt>
+              <dd>
+                {p.goal === 'maintain' ? 'Maintain' : `${p.goal === 'lose' ? 'Lose' : 'Gain'} ${p.paceKgWeek} kg a week`}
+                {p.goalWeightKg ? ` to ${p.goalWeightKg} kg` : ''}
+              </dd>
+              <dt>Diet</dt>
+              <dd>{p.diet.vegetarian ? `Vegetarian${p.diet.eggs ? ', eats eggs' : ''}` : 'Non-vegetarian'}</dd>
+              <dt>Meals</dt>
+              <dd>{p.mealSlots.map((s) => `${s.name} ${s.time}`).join(', ')}</dd>
+            </dl>
             <div className="btn-row" style={{ marginTop: 12 }}>
               <Link className="btn btn-sm" to="/settings/foods" data-testid="link-foods">
                 My foods

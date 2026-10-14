@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bar, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, Bar, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from 'recharts';
 import { addMonths, monthOf, toDateStr, type JourneyView, type MonthView } from '@katori/shared';
 import { api } from '../api';
 import { axisProps, C, dayMs, first, gridProps, Legend, msToDate, niceTicks, Tip, type TipProps } from '../components/charts';
@@ -127,7 +127,7 @@ function MonthTab({ pid }: { pid: string }) {
                       ) : null
                     }
                   />
-                  <Bar dataKey="kcal" fill={C.kcal} radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={false} />
+                  <Bar dataKey="kcal" fill={C.kcal} radius={[6, 6, 0, 0]} maxBarSize={22} isAnimationActive={false} />
                   <Line dataKey="targetKcal" type="stepAfter" stroke={C.ink2} strokeWidth={1.5} dot={false} isAnimationActive={false} />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -225,7 +225,14 @@ function JourneyBody({ j }: { j: JourneyView }) {
               />
               {j.goalKg != null && <ReferenceLine y={j.goalKg} stroke={C.ink2} strokeWidth={1} label={{ value: `Goal ${j.goalKg} kg`, position: 'insideBottomRight', fill: C.ink2, fontSize: 11 }} />}
               <Scatter dataKey="weightKg" fill={C.neutral} isAnimationActive={false} shape={(props: { cx?: number; cy?: number }) => <circle cx={props.cx} cy={props.cy} r={3} fill={C.neutral} />} />
-              <Line dataKey="trendKg" type="monotone" stroke={C.weight} strokeWidth={2} dot={false} isAnimationActive={false} />
+              <defs>
+                <linearGradient id="wfill-journey" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={C.weight} stopOpacity={0.3} />
+                  <stop offset="100%" stopColor={C.weight} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <Area dataKey="trendKg" type="monotone" stroke="none" fill="url(#wfill-journey)" isAnimationActive={false} activeDot={false} />
+              <Line dataKey="trendKg" type="monotone" stroke={C.weight} strokeWidth={2.5} dot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>

@@ -139,7 +139,10 @@ export function Calibration() {
               {v.rows.map((r) => (
                 <tr key={r.mealId} data-testid={`calibration-row-${r.mealId}`}>
                   <td style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.note}>
-                    {r.note || `Meal ${r.mealId}`} <span className="muted small">· {r.profileName}</span>
+                    {r.note || `Meal ${r.mealId}`}
+                    <span className="muted small" style={{ display: 'block' }}>
+                      {r.profileName}
+                    </span>
                   </td>
                   <td>{kcal(r.trueKcal)}</td>
                   <td>{r.status === 'pending' ? '…' : kcal(r.estimatedKcal)}</td>

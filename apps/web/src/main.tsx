@@ -7,6 +7,7 @@ import { App } from './App';
 import './lib/pwa'; // listens for the install prompt before the UI mounts
 import { ToastProvider } from './lib/useToast';
 import { ProfileProvider } from './profile';
+import '@fontsource-variable/plus-jakarta-sans/wght.css'; // weight 200-800
 import './styles.css';
 
 const queryClient = new QueryClient({

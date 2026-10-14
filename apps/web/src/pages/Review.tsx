@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { rescaleToGrams, scaleNutrients, sumNutrients, type Confidence, type ItemSource, type Meal, type MyFood, type Nutrients, type ReferenceFood } from '@katori/shared';
 import { api } from '../api';
+import { XIcon } from '../components/Icons';
 import { Banner, Card, ErrorNote, Field, Loading, NumberInput, Segmented, Sheet, Spinner } from '../components/ui';
 import { clock, fullDate, kcal, num1 } from '../lib/format';
 import { useToast } from '../lib/useToast';
@@ -72,7 +73,7 @@ function FoodPicker({ pid, title, onPick, onClose }: { pid: string; title: strin
               <div className="grow">
                 <div className="title">{f.name}</div>
                 <div className="meta">
-                  {f.servingDesc} · {f.servingG} g {f.household ? '· household' : ''}
+                  {f.servingDesc}, {f.servingG} g{f.household ? ', household' : ''}
                 </div>
               </div>
               <div className="end">{kcal(f.kcal)} kcal</div>
@@ -95,7 +96,7 @@ function FoodPicker({ pid, title, onPick, onClose }: { pid: string; title: strin
                   <div className="grow">
                     <div className="title">{r.name}</div>
                     <div className="meta">
-                      {r.source} · {kcal(r.kcal)} kcal / 100 g{r.servingG ? ` · serving ${r.servingG} g` : ''}
+                      {r.source}, {kcal(r.kcal)} kcal per 100 g{r.servingG ? `, serving ${r.servingG} g` : ''}
                     </div>
                   </div>
                   <input className="input" style={{ width: 80, minHeight: 36 }} type="number" inputMode="decimal" aria-label={`Grams of ${r.name}`} value={g} onChange={(e) => setRefGrams((x) => ({ ...x, [r.id]: Number(e.target.value) }))} />
@@ -205,7 +206,7 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
         items: lines.map((l) => ({ name: l.name, portion: l.portion, grams: l.grams, kcal: l.kcal, protein_g: l.protein_g, carbs_g: l.carbs_g, fat_g: l.fat_g, fiber_g: l.fiber_g, confidence: l.confidence, source: l.source, myFoodId: l.myFoodId })),
       }),
     onSuccess: (m) => {
-      toast(`Confirmed · ${kcal(m.totals.kcal)} kcal`);
+      toast(`Confirmed, ${kcal(m.totals.kcal)} kcal`);
       void qc.invalidateQueries();
       navigate('/');
     },
@@ -308,8 +309,8 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
                     Save as my food
                   </button>
                 )}
-                <button className="btn btn-sm btn-ghost btn-danger" aria-label={`Remove ${l.name}`} onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} data-testid={`item-remove-${i}`}>
-                  Remove
+                <button className="btn btn-sm btn-ghost btn-danger" style={{ marginLeft: 'auto', padding: '0 8px' }} aria-label={`Remove ${l.name}`} title="Remove" onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} data-testid={`item-remove-${i}`}>
+                  <XIcon width={18} height={18} />
                 </button>
               </div>
             </div>
@@ -335,7 +336,8 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
           <div>
             <strong data-testid="review-total-kcal">{kcal(totals.kcal)} kcal</strong>
             <div className="small muted">
-              P {num1(totals.protein_g)} g · C {num1(totals.carbs_g)} g · F {num1(totals.fat_g)} g · Fiber {num1(totals.fiber_g)} g
+              <span>Protein {num1(totals.protein_g)} g</span> <span style={{ marginLeft: 8 }}>Carbs {num1(totals.carbs_g)} g</span>{' '}
+              <span style={{ marginLeft: 8 }}>Fat {num1(totals.fat_g)} g</span> <span style={{ marginLeft: 8 }}>Fiber {num1(totals.fiber_g)} g</span>
             </div>
           </div>
           <button className="btn btn-primary" onClick={() => confirm.mutate()} disabled={confirm.isPending} data-testid="review-confirm">
@@ -429,8 +431,8 @@ export function Review() {
       </div>
       <p className="small muted" style={{ marginTop: -8 }}>
         {fullDate(meal.eatenAt.slice(0, 10))}
-        {meal.portion !== 1 ? ` · your portion ${meal.portion}×` : ''}
-        {meal.calibration ? ' · calibration meal (not counted)' : ''}
+        {meal.portion !== 1 && <span className="badge" style={{ marginLeft: 8 }}>Your portion {meal.portion}×</span>}
+        {meal.calibration && <span className="badge" style={{ marginLeft: 8 }}>Calibration, not counted</span>}
       </p>
 
       {(meal.hasPhoto || meal.note) && (
@@ -442,7 +444,7 @@ export function Review() {
                 <span className="muted">Note:</span> {meal.note}
               </p>
             )}
-            {meal.answers.length > 0 && <p className="small muted">Answers: {meal.answers.map((a) => `${a.question} ${a.answer}`).join(' · ')}</p>}
+            {meal.answers.length > 0 && <p className="small muted">Answers: {meal.answers.map((a) => `${a.question} ${a.answer}`).join('; ')}</p>}
             {meal.sharedWith.length > 0 && (
               <p className="small" data-testid="shared-with">
                 Also logged for {meal.sharedWith.map((s) => `${s.name} (${s.portion}×)`).join(', ')}

@@ -153,7 +153,7 @@ export const api = {
   backfill: (pid: string, entries: { date: string; weightKg: number }[]) => post<{ saved: number }>(`${P(pid)}/body/backfill`, { entries }),
   deleteBody: (pid: string, date: string) => del(`${P(pid)}/body/${date}`),
 
-  dashboard: (pid: string) => get<Dashboard>(`${P(pid)}/dashboard`),
+  dashboard: (pid: string, date?: string) => get<Dashboard>(`${P(pid)}/dashboard${date ? `?date=${date}` : ''}`),
   month: (pid: string, month: string) => get<MonthView>(`${P(pid)}/month?month=${month}`),
   journey: (pid: string) => get<JourneyView>(`${P(pid)}/journey`),
   requestRecap: (pid: string, month: string) => post<Recap>(`${P(pid)}/recaps`, { month }),
