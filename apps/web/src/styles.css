@@ -1693,6 +1693,20 @@ table.data tr:last-child td {
   font-size: 0.75rem;
   color: var(--ink-3);
 }
+/* The numbers are a tap target too: they open the edit sheet. */
+button.item-macros {
+  width: 100%;
+  border: 0;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+button.item-macros:hover {
+  background: var(--surface-3);
+}
 .item-macros strong {
   display: block;
   color: var(--ink);

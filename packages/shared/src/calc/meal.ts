@@ -45,6 +45,24 @@ export function sumNutrients(items: readonly Nutrients[]): Nutrients {
   };
 }
 
+/** Energy implied by the macros (Atwater: 4 kcal/g protein and carbs, 9 fat, 2 fiber). */
+export function macroKcal(n: Pick<Nutrients, 'protein_g' | 'carbs_g' | 'fat_g' | 'fiber_g'>): number {
+  return Math.round(4 * n.protein_g + 4 * n.carbs_g + 9 * n.fat_g + 2 * n.fiber_g);
+}
+
+/**
+ * True when the calories and the macros clearly disagree (more than 20% and 40 kcal apart),
+ * e.g. 600 kcal typed against macros that add up to 300. Small gaps are normal: labels round.
+ */
+export function macrosDisagree(n: Nutrients): boolean {
+  const fromMacros = macroKcal(n);
+  const gap = Math.abs(n.kcal - fromMacros);
+  return gap >= 40 && gap > 0.2 * Math.max(n.kcal, fromMacros);
+}
+
+/** Upper bounds a line's values may take, matching the `Nutrients` schema. */
+export const NUTRIENT_MAX: Nutrients = { kcal: 20000, protein_g: 2000, carbs_g: 2000, fat_g: 2000, fiber_g: 500 };
+
 /** Pick the profile's meal slot closest to a time of day (circular, so 23:30 is near 00:30). */
 export function slotForTime(slots: readonly MealSlot[], time: string): string {
   if (slots.length === 0) return 'Meal';

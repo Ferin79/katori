@@ -335,3 +335,62 @@ test('Calibration and learned maintenance', async ({ page }) => {
   await page.getByTestId('suggestion-accept').click();
   await expect(page.getByTestId('card-suggestion')).toHaveCount(0);
 });
+
+test('Edit nutrition by hand: typed calories and macros replace the estimate, before and after confirming', async ({ page }) => {
+  const n = (s: string) => Number(s.replace(/[^\d.]/g, ''));
+  await page.goto('/');
+  await selectProfile(page, 'arjun');
+  const before = n(await page.getByTestId('today-kcal').innerText());
+  await page.getByTestId('nav-add').click();
+  await page.getByTestId('meal-note').fill('2 rotis, 1 katori dal');
+  await page.getByTestId('meal-submit').click();
+  await expect(page.getByTestId('items')).toBeVisible();
+  const mealUrl = page.url();
+  const oldKcal = n(await page.getByTestId('item-kcal-1').innerText());
+  const oldProtein = await page.getByTestId('item-protein-1').innerText();
+  const oldTotal = n(await page.getByTestId('review-total-kcal').innerText());
+
+  await page.getByTestId('item-edit-1').click();
+  // Bad values explain themselves and block Done.
+  await page.getByTestId('edit-kcal').fill('');
+  await expect(page.getByTestId('edit-kcal-error')).toHaveText('Enter a number (0 if none)');
+  await expect(page.getByTestId('edit-save')).toBeDisabled();
+  await page.getByTestId('edit-kcal').fill('-5');
+  await expect(page.getByTestId('edit-kcal-error')).toHaveText("Can't be negative");
+  await page.getByTestId('edit-kcal').fill('20001');
+  await expect(page.getByTestId('edit-kcal-error')).toHaveText('Up to 20,000');
+  // Cancel throws the typing away.
+  await page.getByTestId('edit-cancel').click();
+  await expect(page.getByTestId('item-kcal-1')).toHaveText(oldKcal.toLocaleString('en-US'));
+
+  // 100 kcal more, same protein (the "AI said 500, it was 600" case).
+  await page.getByTestId('item-edit-1').click();
+  await page.getByTestId('edit-kcal').fill(String(oldKcal + 100));
+  await expect(page.getByTestId('edit-meal-total')).toContainText(`${(oldTotal + 100).toLocaleString('en-US')} kcal`);
+  await page.getByTestId('edit-save').click();
+  await expect(page.getByTestId('item-kcal-1')).toHaveText((oldKcal + 100).toLocaleString('en-US'));
+  await expect(page.getByTestId('item-protein-1')).toHaveText(oldProtein);
+  await expect(page.getByTestId('item-1')).toContainText('Manual');
+  await expect(page.getByTestId('review-total-kcal')).toHaveText(`${(oldTotal + 100).toLocaleString('en-US')} kcal`);
+  await expect(page.getByTestId('review-unsaved')).toBeVisible();
+  // Grams now rescale from the typed numbers.
+  const grams = Number(await page.getByTestId('item-grams-1').inputValue());
+  await page.getByTestId('item-grams-1').fill(String(grams / 2));
+  await expect(page.getByTestId('item-kcal-1')).toHaveText(Math.round((oldKcal + 100) / 2).toLocaleString('en-US'));
+  await page.getByTestId('item-grams-1').fill(String(grams));
+  await page.getByTestId('review-confirm').click();
+  await expect(page.getByTestId('today-kcal')).toHaveText((before + oldTotal + 100).toLocaleString('en-US'));
+
+  // After confirming: Save changes waits for a change, then stores it.
+  await page.goto(mealUrl);
+  await expect(page.getByTestId('review-confirm')).toHaveText('Save changes');
+  await expect(page.getByTestId('review-confirm')).toBeDisabled();
+  await page.getByTestId('item-macros-1').click(); // the numbers open the editor too
+  await page.getByTestId('edit-protein').fill('20');
+  await page.getByTestId('edit-save').click();
+  await expect(page.getByTestId('review-confirm')).toBeEnabled();
+  await page.getByTestId('review-confirm').click();
+  await expect(page.getByTestId('today-kcal')).toBeVisible();
+  const meal = await (await page.request.get(`/api/profiles/arjun/meals/${mealUrl.split('/').pop()}`)).json();
+  expect(meal.items[1]).toMatchObject({ kcal: oldKcal + 100, protein_g: 20, source: 'manual', confidence: 'high', myFoodId: null });
+});

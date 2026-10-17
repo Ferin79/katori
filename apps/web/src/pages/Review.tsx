@@ -1,9 +1,9 @@
 import { useId, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { rescaleToGrams, scaleNutrients, sumNutrients, type Confidence, type ItemSource, type Meal, type MyFood, type Nutrients, type ReferenceFood } from '@katori/shared';
+import { macroKcal, macrosDisagree, NUTRIENT_MAX, rescaleToGrams, scaleNutrients, sumNutrients, type Confidence, type ItemSource, type Meal, type MyFood, type Nutrients, type ReferenceFood } from '@katori/shared';
 import { api } from '../api';
-import { XIcon } from '../components/Icons';
+import { PencilIcon, XIcon } from '../components/Icons';
 import { Banner, Card, ErrorNote, Field, Loading, NumberInput, Segmented, Sheet, Spinner } from '../components/ui';
 import { clock, fullDate, kcal, num1 } from '../lib/format';
 import { useToast } from '../lib/useToast';
@@ -18,15 +18,15 @@ interface Line extends Nutrients {
   confidence: Confidence | null;
   source: ItemSource;
   myFoodId: number | null;
-  /** Values the grams field rescales from, so repeated edits don't compound rounding. */
-  base: Nutrients & { grams: number };
+  /** Values (and portion wording) the grams field rescales from, so repeated edits don't compound rounding. */
+  base: Nutrients & { grams: number; portion: string };
 }
 
 let keySeq = 0;
 const nextKey = () => `l${++keySeq}`;
 
 function lineFrom(i: Omit<Line, 'key' | 'base'>): Line {
-  return { ...i, key: nextKey(), base: { grams: i.grams, kcal: i.kcal, protein_g: i.protein_g, carbs_g: i.carbs_g, fat_g: i.fat_g, fiber_g: i.fiber_g } };
+  return { ...i, key: nextKey(), base: { grams: i.grams, portion: i.portion, kcal: i.kcal, protein_g: i.protein_g, carbs_g: i.carbs_g, fat_g: i.fat_g, fiber_g: i.fiber_g } };
 }
 
 function fromFood(f: MyFood, grams?: number): Line {
@@ -182,6 +182,93 @@ function SaveFoodSheet({ pid, line, onSaved, onClose }: { pid: string; line: Lin
   );
 }
 
+const NUTRIENT_FIELDS: { key: keyof Nutrients; label: string; unit: string; testId: string }[] = [
+  { key: 'kcal', label: 'Calories', unit: 'kcal', testId: 'edit-kcal' },
+  { key: 'protein_g', label: 'Protein', unit: 'g', testId: 'edit-protein' },
+  { key: 'carbs_g', label: 'Carbs', unit: 'g', testId: 'edit-carbs' },
+  { key: 'fat_g', label: 'Fat', unit: 'g', testId: 'edit-fat' },
+  { key: 'fiber_g', label: 'Fiber', unit: 'g', testId: 'edit-fiber' },
+];
+
+function fieldError(v: number | null, max: number): string | null {
+  if (v == null) return 'Enter a number (0 if none)';
+  if (v < 0) return "Can't be negative";
+  if (v > max) return `Up to ${max.toLocaleString('en-US')}`;
+  return null;
+}
+
+/** Type a line's calories and macros by hand, e.g. when you know the AI's number is off. */
+function EditLineSheet({ line, mealKcal, sharedWith, onSave, onClose }: { line: Line; mealKcal: number; sharedWith: string[]; onSave: (name: string, n: Nutrients) => void; onClose: () => void }) {
+  const nameId = useId();
+  const [name, setName] = useState(line.name);
+  const [vals, setVals] = useState<Record<keyof Nutrients, number | null>>({ kcal: line.kcal, protein_g: line.protein_g, carbs_g: line.carbs_g, fat_g: line.fat_g, fiber_g: line.fiber_g });
+  const errors = Object.fromEntries(NUTRIENT_FIELDS.map((f) => [f.key, fieldError(vals[f.key], NUTRIENT_MAX[f.key])])) as Record<keyof Nutrients, string | null>;
+  const nameError = name.trim() ? null : 'Enter a name';
+  const valid = !nameError && NUTRIENT_FIELDS.every((f) => !errors[f.key]);
+  const n = valid ? (vals as Nutrients) : null;
+  const newMealKcal = Math.round(mealKcal - line.kcal + (vals.kcal != null && !errors.kcal ? vals.kcal : line.kcal));
+  return (
+    <Sheet title="Edit nutrition" onClose={onClose} testId="edit-line">
+      <form
+        noValidate
+        className="form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (n) onSave(name.trim(), n);
+        }}
+      >
+        <p className="small muted">
+          For the {num1(line.grams)} g on this line{line.portion && line.portion !== `${line.grams} g` ? ` (${line.portion})` : ''}. Changing grams later rescales from these numbers.
+        </p>
+        <Field label="Name" htmlFor={nameId} hint={nameError && <span className="delta-bad" data-testid="edit-name-error">{nameError}</span>}>
+          <input id={nameId} className="input" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} data-testid="edit-name" />
+        </Field>
+        <div className="grid-2">
+          {NUTRIENT_FIELDS.map((f) => (
+            <NumberInput
+              key={f.key}
+              label={f.label}
+              unit={f.unit}
+              min={0}
+              max={NUTRIENT_MAX[f.key]}
+              value={vals[f.key]}
+              onChange={(v) => setVals((x) => ({ ...x, [f.key]: v }))}
+              testId={f.testId}
+              hint={errors[f.key] && <span className="delta-bad" data-testid={`${f.testId}-error`}>{errors[f.key]}</span>}
+            />
+          ))}
+        </div>
+        {n && macrosDisagree(n) && (
+          <div className="banner banner-warn" role="status" data-testid="edit-macro-warning">
+            <div style={{ flex: 1, minWidth: 0 }}>
+              Protein, carbs and fat add up to about {kcal(macroKcal(n))} kcal, not {kcal(n.kcal)}. Fine if you know better; otherwise check the numbers.
+            </div>
+            <button type="button" className="btn btn-sm btn-outline" onClick={() => setVals((x) => ({ ...x, kcal: macroKcal(n) }))} data-testid="edit-use-macro-kcal">
+              Use {kcal(macroKcal(n))}
+            </button>
+          </div>
+        )}
+        {line.source === 'my_food' && <p className="small muted">This line stops being linked to your saved food; the saved food itself doesn't change.</p>}
+        {sharedWith.length > 0 && <p className="small muted">Only your meal changes. {sharedWith.join(' and ')} keep{sharedWith.length === 1 ? 's' : ''} their own share.</p>}
+        <p className="small" data-testid="edit-meal-total">
+          Meal total: <strong>{kcal(newMealKcal)} kcal</strong>
+          {newMealKcal !== Math.round(mealKcal) && <span className="muted"> (was {kcal(mealKcal)})</span>}
+        </p>
+        <div className="btn-row">
+          <button type="button" className="btn" onClick={onClose} data-testid="edit-cancel">
+            Cancel
+          </button>
+          <button className="btn btn-primary" disabled={!valid} data-testid="edit-save">
+            Done
+          </button>
+        </div>
+      </form>
+    </Sheet>
+  );
+}
+
+const itemPayload = (l: Omit<Line, 'key' | 'base'>) => ({ name: l.name, portion: l.portion, grams: l.grams, kcal: l.kcal, protein_g: l.protein_g, carbs_g: l.carbs_g, fat_g: l.fat_g, fiber_g: l.fiber_g, confidence: l.confidence, source: l.source, myFoodId: l.myFoodId });
+
 function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[] }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -190,8 +277,13 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
   const [slot, setSlot] = useState(meal.slot);
   const [picker, setPicker] = useState<{ mode: 'add' } | { mode: 'swap'; key: string } | null>(null);
   const [saving, setSaving] = useState<Line | null>(null);
+  const [editing, setEditing] = useState<Line | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const totals = useMemo(() => sumNutrients(lines), [lines]);
+  const confirmed = meal.status === 'confirmed';
+  // Nothing is stored until Confirm / Save changes, so say when there's something to save.
+  const [initial] = useState(() => JSON.stringify({ slot: meal.slot, items: meal.items.map(itemPayload) }));
+  const dirty = JSON.stringify({ slot, items: lines.map(itemPayload) }) !== initial;
 
   const update = (key: string, fn: (l: Line) => Line) => setLines((ls) => ls.map((l) => (l.key === key ? fn(l) : l)));
 
@@ -203,7 +295,7 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
     mutationFn: () =>
       api.confirmMeal(pid, meal.id, {
         slot,
-        items: lines.map((l) => ({ name: l.name, portion: l.portion, grams: l.grams, kcal: l.kcal, protein_g: l.protein_g, carbs_g: l.carbs_g, fat_g: l.fat_g, fiber_g: l.fiber_g, confidence: l.confidence, source: l.source, myFoodId: l.myFoodId })),
+        items: lines.map(itemPayload),
       }),
     onSuccess: (m) => {
       toast(`Confirmed, ${kcal(m.totals.kcal)} kcal`);
@@ -246,7 +338,7 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
         </Card>
       )}
 
-      <Card title="Items" subtitle="Change grams and the macros rescale. Low-confidence lines are highlighted." testId="items">
+      <Card title="Items" subtitle="Change grams and the macros rescale, or tap the numbers to type your own. Low-confidence lines are highlighted." testId="items">
         <div className="stack">
           {lines.length === 0 && <p className="muted">No items yet. Add what you ate below.</p>}
           {lines.map((l, i) => (
@@ -267,7 +359,13 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
                   <span className="badge">{SOURCE_LABEL[l.source]}</span>
                 </div>
               </div>
-              <div className="item-macros">
+              <button
+                type="button"
+                className="item-macros"
+                onClick={() => setEditing(l)}
+                aria-label={`Edit ${l.name}: ${kcal(l.kcal)} kcal, protein ${num1(l.protein_g)} g, carbs ${num1(l.carbs_g)} g, fat ${num1(l.fat_g)} g, fiber ${num1(l.fiber_g)} g`}
+                data-testid={`item-macros-${i}`}
+              >
                 <span>
                   <strong data-testid={`item-kcal-${i}`}>{kcal(l.kcal)}</strong>kcal
                 </span>
@@ -275,15 +373,15 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
                   <strong data-testid={`item-protein-${i}`}>{num1(l.protein_g)}</strong>protein
                 </span>
                 <span>
-                  <strong>{num1(l.carbs_g)}</strong>carbs
+                  <strong data-testid={`item-carbs-${i}`}>{num1(l.carbs_g)}</strong>carbs
                 </span>
                 <span>
-                  <strong>{num1(l.fat_g)}</strong>fat
+                  <strong data-testid={`item-fat-${i}`}>{num1(l.fat_g)}</strong>fat
                 </span>
                 <span>
-                  <strong>{num1(l.fiber_g)}</strong>fiber
+                  <strong data-testid={`item-fiber-${i}`}>{num1(l.fiber_g)}</strong>fiber
                 </span>
-              </div>
+              </button>
               <div className="item-actions">
                 <label className="row small" style={{ gap: 6 }}>
                   <input
@@ -295,12 +393,15 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
                     aria-label={`Grams of ${l.name}`}
                     onChange={(e) => {
                       const g = Math.max(0, Number(e.target.value) || 0);
-                      update(l.key, (x) => ({ ...x, ...rescaleToGrams(x.base, g), grams: g, portion: x.base.grams > 0 && g !== x.base.grams ? `${g} g` : x.portion }));
+                      update(l.key, (x) => ({ ...x, ...rescaleToGrams(x.base, g), grams: g, portion: x.base.grams > 0 && g !== x.base.grams ? `${g} g` : x.base.portion }));
                     }}
                     data-testid={`item-grams-${i}`}
                   />
                   g
                 </label>
+                <button className="btn btn-sm" onClick={() => setEditing(l)} aria-label={`Edit nutrition for ${l.name}`} data-testid={`item-edit-${i}`}>
+                  <PencilIcon width={16} height={16} /> Edit
+                </button>
                 <button className="btn btn-sm" onClick={() => setPicker({ mode: 'swap', key: l.key })} data-testid={`item-swap-${i}`}>
                   Swap
                 </button>
@@ -340,10 +441,15 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
               <span style={{ marginLeft: 8 }}>Fat {num1(totals.fat_g)} g</span> <span style={{ marginLeft: 8 }}>Fiber {num1(totals.fiber_g)} g</span>
             </div>
           </div>
-          <button className="btn btn-primary" onClick={() => confirm.mutate()} disabled={confirm.isPending} data-testid="review-confirm">
-            {meal.status === 'confirmed' ? 'Save changes' : 'Confirm'}
+          <button className="btn btn-primary" onClick={() => confirm.mutate()} disabled={confirm.isPending || (confirmed && !dirty)} data-testid="review-confirm">
+            {confirmed ? 'Save changes' : 'Confirm'}
           </button>
         </div>
+        {dirty && (
+          <p className="small" data-testid="review-unsaved">
+            Unsaved changes: tap {confirmed ? 'Save changes' : 'Confirm'} to keep them.
+          </p>
+        )}
         {confirm.error && <p className="delta-bad small">{confirm.error instanceof Error ? confirm.error.message : String(confirm.error)}</p>}
       </div>
 
@@ -367,6 +473,21 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
                 }),
               );
             setPicker(null);
+          }}
+        />
+      )}
+      {editing && (
+        <EditLineSheet
+          line={editing}
+          mealKcal={totals.kcal}
+          sharedWith={meal.sharedWith.map((s) => s.name)}
+          onClose={() => setEditing(null)}
+          onSave={(name, n) => {
+            const changed = (Object.keys(n) as (keyof Nutrients)[]).some((k) => n[k] !== editing[k]);
+            // Typed numbers become the line's own: marked manual, unlinked from any saved food,
+            // no longer "check this", and the base that later gram changes rescale from.
+            update(editing.key, (x) => (changed ? { ...x, name, ...n, source: 'manual', myFoodId: null, confidence: 'high', base: { grams: x.grams, portion: x.portion, ...n } } : { ...x, name }));
+            setEditing(null);
           }}
         />
       )}

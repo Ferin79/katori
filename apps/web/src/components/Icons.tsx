@@ -103,3 +103,8 @@ export const ScaleIcon = (p: P) => (
     <path d="M8.5 9a5 5 0 0 1 7 0M12 9l1.2-1.8" />
   </svg>
 );
+export const PencilIcon = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4zM13.5 6.5l4 4" />
+  </svg>
+);
