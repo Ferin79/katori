@@ -428,3 +428,39 @@ test('Edit nutrition by hand: typed calories and macros replace the estimate, be
   const meal = await (await page.request.get(`/api/profiles/arjun/meals/${mealUrl.split('/').pop()}`)).json();
   expect(meal.items[1]).toMatchObject({ kcal: oldKcal + 100, protein_g: 20, source: 'manual', confidence: 'high', myFoodId: null });
 });
+
+test('Targets follow weight and profile: a 1 kg move and new job or workouts update calories and macros', async ({ page }) => {
+  await page.goto('/');
+  await selectProfile(page, 'arjun');
+  const target = async () =>
+    (await (await page.request.get('/api/profiles/arjun/targets', { headers: { 'x-katori-date': today() } })).json()).current as { kcal: number; protein_g: number; source: string; basisWeightKg: number };
+  const t0 = await target();
+  expect(t0.source).toBe('formula');
+
+  // Under 1 kg the targets stay put: day-to-day water weight shouldn't move them.
+  await page.getByTestId('nav-body').click();
+  const saveWeight = page.getByTestId('body-save-weight');
+  await page.getByTestId('body-weight').fill(String(t0.basisWeightKg + 0.4));
+  await saveWeight.click();
+  await expect(saveWeight).toHaveText('Saved');
+  expect((await target()).kcal).toBe(t0.kcal);
+
+  // A full kilogram re-derives calories and protein (1.6 g per kg), and the toast says so.
+  await page.getByTestId('body-weight').fill(String(t0.basisWeightKg + 2));
+  await saveWeight.click();
+  await expect(page.getByTestId('toast').filter({ hasText: 'Daily target now' })).toBeVisible();
+  const t1 = await target();
+  expect(t1.kcal).toBeGreaterThan(t0.kcal);
+  expect(t1.protein_g).toBeGreaterThan(t0.protein_g);
+
+  // Job type and workouts move the activity level in Edit profile, and with it the targets.
+  await page.goto('/settings/profile');
+  await page.getByTestId('ob-job-manual').click();
+  await page.getByTestId('ob-workouts').fill('5');
+  await expect(page.getByTestId('ob-activity')).toHaveValue('very_active');
+  await page.getByRole('button', { name: 'Save' }).last().click();
+  await expect(page.getByTestId('toast').filter({ hasText: 'Daily target now' })).toBeVisible();
+  const t2 = await target();
+  expect(t2.kcal).toBeGreaterThan(t1.kcal);
+  await expect(page.getByTestId('target-kcal')).toHaveText(`${t2.kcal.toLocaleString('en-US')} kcal`);
+});

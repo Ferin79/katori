@@ -93,7 +93,9 @@ export function draftFromProfile(p: Profile): Draft {
     jobType: p.jobType,
     workoutsPerWeek: p.workoutsPerWeek,
     activity: p.activity,
-    activityTouched: true,
+    // Still follows job type and workouts unless someone picked a different level by hand, so
+    // changing either here moves the activity level (and with it the targets).
+    activityTouched: p.activity !== activityFromLifestyle(p.jobType, p.workoutsPerWeek),
     vegetarian: p.diet.vegetarian,
     eggs: p.diet.eggs,
     mealSlots: p.mealSlots,

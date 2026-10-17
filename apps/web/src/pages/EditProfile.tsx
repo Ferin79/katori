@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Profile } from '@katori/shared';
 import { api } from '../api';
 import { Banner, Card, ErrorNote, Loading } from '../components/ui';
+import { kcal } from '../lib/format';
 import { useToast } from '../lib/useToast';
 import { usePid } from '../profile';
 import { ActivityFields, AiFields, BasicsFields, DietFields, draftFromProfile, GoalFields, NameFields, problems, type Draft } from './profile-form';
@@ -19,31 +20,39 @@ function Form({ profile }: { profile: Profile }) {
     setD((x) => ({ ...x, ...patch }));
   };
   const save = useMutation({
-    mutationFn: () =>
-      api.updateProfile(profile.id, {
-        name: d.name.trim(),
-        colour: d.colour,
-        sex: d.sex!,
-        birthDate: d.birthDate,
-        heightCm: Math.round(d.heightCm! * 10) / 10,
-        goal: d.goal,
-        goalWeightKg: d.goalWeightKg,
-        paceKgWeek: d.goal === 'maintain' ? 0 : d.paceKgWeek,
-        jobType: d.jobType,
-        workoutsPerWeek: d.workoutsPerWeek,
-        activity: d.activity,
-        diet: { vegetarian: d.vegetarian, eggs: d.vegetarian ? d.eggs : true },
-        mealSlots: d.mealSlots,
-        specialStatus: d.sex === 'female' ? d.specialStatus : 'none',
-        aiAccess: d.aiAccess,
-      }),
-    onSuccess: () => {
-      toast('Profile saved');
+    // Read the daily target either side of the save, so the toast can say when it moved.
+    mutationFn: async () => {
+      const before = (await api.targets(profile.id)).current?.kcal ?? null;
+      await saveProfile();
+      const after = (await api.targets(profile.id)).current?.kcal ?? null;
+      return { before, after };
+    },
+    onSuccess: ({ before, after }) => {
+      toast(after != null && after !== before ? `Profile saved. Daily target now ${kcal(after)} kcal` : 'Profile saved');
       void qc.invalidateQueries();
       navigate('/settings');
     },
     onError: (e) => setError(e instanceof Error ? e.message : String(e)),
   });
+  function saveProfile() {
+    return api.updateProfile(profile.id, {
+      name: d.name.trim(),
+      colour: d.colour,
+      sex: d.sex!,
+      birthDate: d.birthDate,
+      heightCm: Math.round(d.heightCm! * 10) / 10,
+      goal: d.goal,
+      goalWeightKg: d.goalWeightKg,
+      paceKgWeek: d.goal === 'maintain' ? 0 : d.paceKgWeek,
+      jobType: d.jobType,
+      workoutsPerWeek: d.workoutsPerWeek,
+      activity: d.activity,
+      diet: { vegetarian: d.vegetarian, eggs: d.vegetarian ? d.eggs : true },
+      mealSlots: d.mealSlots,
+      specialStatus: d.sex === 'female' ? d.specialStatus : 'none',
+      aiAccess: d.aiAccess,
+    });
+  }
   const submit = () => {
     for (const step of ['name', 'basics', 'goal', 'diet'] as const) {
       const p = problems(d, step);

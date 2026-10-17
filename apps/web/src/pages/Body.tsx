@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { addDays, bmiCategory, diffDays, toDateStr, type BodyLog } from '@katori/shared';
 import { api } from '../api';
 import { Banner, Card, ErrorNote, Field, Loading, SectionHead, ValueStepper } from '../components/ui';
-import { dayMonth, dayShort, fullDate, kg, num1, pct, signed } from '../lib/format';
+import { dayMonth, dayShort, fullDate, kcal, kg, num1, pct, signed } from '../lib/format';
 import { useToast } from '../lib/useToast';
 import { usePid, useProfiles } from '../profile';
 import { BodyCompCard, WaistCard, WeightCard } from './home/cards';
@@ -51,9 +51,15 @@ function WeightLog({ pid, date, today, logs, goalKg }: { pid: string; date: stri
   const bad = outOf(w, LIMITS.weight);
   const unchanged = onDay != null && w === onDay;
   const save = useMutation({
-    mutationFn: () => api.saveBody(pid, date, { weightKg: w }),
-    onSuccess: () => {
-      toast(`Weight saved: ${kg(w)}`);
+    // A 1 kg move (or a month) re-derives calculated targets; read them either side to say so.
+    mutationFn: async () => {
+      const before = (await api.targets(pid)).current?.kcal ?? null;
+      await api.saveBody(pid, date, { weightKg: w });
+      const after = (await api.targets(pid)).current?.kcal ?? null;
+      return { before, after };
+    },
+    onSuccess: ({ before, after }) => {
+      toast(after != null && after !== before ? `Weight saved: ${kg(w)}. Daily target now ${kcal(after)} kcal` : `Weight saved: ${kg(w)}`);
       saved();
     },
   });
