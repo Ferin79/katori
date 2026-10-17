@@ -1,12 +1,12 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ACTIVITY_LABELS, type AuthState, type HouseholdSettings, type ManualTargetInput } from '@katori/shared';
+import { ACTIVITY_LABELS, type AuthState, type HouseholdSettings, type ManualTargetInput, type Profile } from '@katori/shared';
 import { api, setUnlockToken } from '../api';
 import { ChevronRight } from '../components/Icons';
 import { AppCard } from '../components/Install';
-import { Banner, Card, ErrorNote, Field, Loading, NumberInput, Segmented } from '../components/ui';
-import { dayMonth, kcal } from '../lib/format';
+import { Banner, Card, ErrorNote, Field, Loading, MiniStats, NumberInput, Segmented } from '../components/ui';
+import { dayMonth, initials, kcal } from '../lib/format';
 import { useToast } from '../lib/useToast';
 import { usePid, useProfiles } from '../profile';
 
@@ -14,9 +14,85 @@ const AUTH_TEXT: Record<AuthState['status'], string> = {
   ok: 'Signed in',
   signed_out: 'Signed out',
   missing_credential: 'No credential yet',
-  manual: 'Manual logging (no AI)',
+  manual: 'Manual only',
   unknown: 'Not checked yet',
 };
+const AUTH_TONE: Record<AuthState['status'], string> = { ok: 'badge-good', signed_out: 'badge-bad', missing_credential: 'badge-bad', manual: '', unknown: '' };
+
+/** One settings row: a label (and note) on the left, its value on the right; a link when `to` is set. */
+function Row({ label, note, children, to, testId }: { label: string; note?: ReactNode; children?: ReactNode; to?: string; testId?: string }) {
+  const inner = (
+    <>
+      <span className="srow-label">
+        {label}
+        {note && <span className="srow-note">{note}</span>}
+      </span>
+      {children != null && <span className="srow-value">{children}</span>}
+      {to && <ChevronRight width={16} height={16} className="icon srow-go" />}
+    </>
+  );
+  return to ? (
+    <Link className="srow" to={to} data-testid={testId}>
+      {inner}
+    </Link>
+  ) : (
+    <div className="srow" data-testid={testId}>
+      {inner}
+    </div>
+  );
+}
+
+function ProfileHero({ p }: { p: Profile }) {
+  return (
+    <section className="card profile-hero" aria-label={p.name} data-testid="settings-profile">
+      <span className="avatar-lg" style={{ ['--chip-colour' as string]: p.colour }} aria-hidden>
+        {initials(p.name)}
+      </span>
+      <div className="who">
+        <h2>{p.name}</h2>
+        <p className="small muted">
+          {p.sex === 'male' ? 'Male' : 'Female'}, {p.age} years, {p.heightCm} cm
+        </p>
+        <p className="small muted">{ACTIVITY_LABELS[p.activity]}</p>
+      </div>
+      <Link className="btn btn-sm btn-primary" to="/settings/profile" data-testid="edit-profile">
+        Edit
+      </Link>
+    </section>
+  );
+}
+
+/** Goal, diet and meal times at a glance; each opens the profile editor. Saved foods have their own page. */
+function PlanCard({ pid, p }: { pid: string; p: Profile }) {
+  const { data: foods } = useQuery({ queryKey: ['foods', pid], queryFn: () => api.foods(pid) });
+  const goal = p.goal === 'maintain' ? 'Maintain' : `${p.goal === 'lose' ? 'Lose' : 'Gain'} ${p.paceKgWeek} kg a week`;
+  return (
+    <section className="card rows-card" aria-label="Your plan" data-testid="settings-plan">
+      <h2 className="rows-title">Your plan</h2>
+      <Row label="Goal" to="/settings/profile" testId="plan-goal">
+        <span className="srow-lines">
+          <span>{goal}</span>
+          {p.goalWeightKg ? <span className="muted">to {p.goalWeightKg} kg</span> : null}
+        </span>
+      </Row>
+      <Row label="Diet" to="/settings/profile" testId="plan-diet">
+        {p.diet.vegetarian ? `Vegetarian${p.diet.eggs ? ', eggs' : ''}` : 'Non-vegetarian'}
+      </Row>
+      <Row label="Meal times" to="/settings/profile" testId="plan-meals">
+        <span className="srow-lines">
+          {p.mealSlots.map((s) => (
+            <span key={s.name}>
+              {s.name} <span className="muted">{s.time}</span>
+            </span>
+          ))}
+        </span>
+      </Row>
+      <Row label="My foods" note="Logged in one tap from Add meal" to="/settings/foods" testId="link-foods">
+        {foods ? `${foods.length} saved` : null}
+      </Row>
+    </section>
+  );
+}
 
 function TargetsSection({ pid }: { pid: string }) {
   const qc = useQueryClient();
@@ -35,13 +111,14 @@ function TargetsSection({ pid }: { pid: string }) {
   };
   const save = useMutation({ mutationFn: () => api.setTargets(pid, form!), onSuccess: () => done('Targets saved') });
   const reset = useMutation({ mutationFn: () => api.recalcTargets(pid), onSuccess: () => done('Back to the calculated targets') });
-  if (!t) return <Card title="Targets">…</Card>;
+  if (!t) return <Card title="Daily targets">…</Card>;
   const c = t.current;
   const f = t.formula;
+  const source = c ? (c.source === 'formula' ? 'Calculated' : c.source === 'learned' ? 'Learned from your trend' : 'Set by hand') : null;
   return (
     <Card
-      title="Targets"
-      subtitle={c ? `${c.source === 'formula' ? 'Calculated' : c.source === 'learned' ? 'Learned from your trend' : 'Set by hand'} since ${dayMonth(c.effectiveFrom)}` : undefined}
+      title="Daily targets"
+      subtitle={c && source ? `${source} since ${dayMonth(c.effectiveFrom)}` : undefined}
       testId="settings-targets"
       actions={
         !editing && (
@@ -52,18 +129,24 @@ function TargetsSection({ pid }: { pid: string }) {
       }
     >
       {c && !editing && (
-        <dl className="kv">
-          <dt>Calories</dt>
-          <dd data-testid="target-kcal">{kcal(c.kcal)} kcal</dd>
-          <dt>Protein</dt>
-          <dd data-testid="target-protein">{c.protein_g} g</dd>
-          <dt>Carbs</dt>
-          <dd>{c.carbs_g} g</dd>
-          <dt>Fat</dt>
-          <dd>{c.fat_g} g</dd>
-          <dt>Fiber</dt>
-          <dd>{c.fiber_g} g</dd>
-        </dl>
+        <>
+          <div className="avg-hero">
+            <span className="v" data-testid="target-kcal">
+              {kcal(c.kcal)}
+              <span className="u"> kcal</span>
+            </span>
+            <span className="u">a day</span>
+          </div>
+          <MiniStats
+            testId="target-macros"
+            items={[
+              { k: 'Protein', v: c.protein_g, u: 'g', testId: 'target-protein' },
+              { k: 'Carbs', v: c.carbs_g, u: 'g' },
+              { k: 'Fat', v: c.fat_g, u: 'g' },
+              { k: 'Fiber', v: c.fiber_g, u: 'g' },
+            ]}
+          />
+        </>
       )}
       {editing && form && (
         <form
@@ -91,43 +174,45 @@ function TargetsSection({ pid }: { pid: string }) {
           </div>
         </form>
       )}
-      {f && (
-        <details className="tips" style={{ marginTop: 12 }}>
-          <summary>How the formula gets there</summary>
-          <p className="small" style={{ marginTop: 8 }} data-testid="formula-breakdown">
-            Mifflin-St Jeor resting energy {kcal(f.bmr)} kcal × activity {f.activityFactor} = maintenance {kcal(f.maintenance)} kcal.
-            {f.appliedPaceKgWeek > 0 && ` Adjusted by ${kcal(f.dailyDelta)} kcal a day for ${f.appliedPaceKgWeek} kg a week (≈7,700 kcal per kg).`} Protein 1.6 g/kg (up to {f.proteinHigh_g} g if you lift), fat 25% of
-            calories, carbs the rest, fiber 14 g per 1,000 kcal. Formula result: {kcal(f.kcal)} kcal. It recalculates when your weight moves 1 kg, or monthly.
-          </p>
-          {f.notes.map((n) => (
-            <p key={n} className="small muted">
-              {n}
-            </p>
-          ))}
-        </details>
-      )}
-      {c && c.source !== 'formula' && (
-        <button className="btn btn-sm" style={{ marginTop: 12 }} onClick={() => reset.mutate()} disabled={reset.isPending} data-testid="targets-reset">
+      {c && c.source !== 'formula' && !editing && (
+        <button className="btn btn-sm" style={{ marginTop: 4 }} onClick={() => reset.mutate()} disabled={reset.isPending} data-testid="targets-reset">
           Use the calculated targets
         </button>
       )}
-      {t.history.length > 1 && (
-        <details className="tips" style={{ marginTop: 12 }}>
-          <summary>History</summary>
-          <table className="data">
-            <tbody>
-              {t.history.map((h) => (
-                <tr key={h.id}>
-                  <td>{dayMonth(h.effectiveFrom)}</td>
-                  <td>{kcal(h.kcal)} kcal</td>
-                  <td>{h.protein_g} g</td>
-                  <td>{h.source}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </details>
-      )}
+      <div className="card-more">
+        {f && (
+          <details className="tips">
+            <summary>How it's calculated</summary>
+            <p className="small" style={{ marginTop: 8 }} data-testid="formula-breakdown">
+              Mifflin-St Jeor resting energy {kcal(f.bmr)} kcal × activity {f.activityFactor} = maintenance {kcal(f.maintenance)} kcal.
+              {f.appliedPaceKgWeek > 0 && ` Adjusted by ${kcal(f.dailyDelta)} kcal a day for ${f.appliedPaceKgWeek} kg a week (≈7,700 kcal per kg).`} Protein 1.6 g/kg (up to {f.proteinHigh_g} g if you lift), fat 25% of
+              calories, carbs the rest, fiber 14 g per 1,000 kcal. Formula result: {kcal(f.kcal)} kcal. It recalculates when your weight moves 1 kg, or monthly.
+            </p>
+            {f.notes.map((n) => (
+              <p key={n} className="small muted">
+                {n}
+              </p>
+            ))}
+          </details>
+        )}
+        {t.history.length > 1 && (
+          <details className="tips">
+            <summary>History</summary>
+            <table className="data">
+              <tbody>
+                {t.history.map((h) => (
+                  <tr key={h.id}>
+                    <td>{dayMonth(h.effectiveFrom)}</td>
+                    <td>{kcal(h.kcal)} kcal</td>
+                    <td>{h.protein_g} g</td>
+                    <td>{h.source}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
+        )}
+      </div>
     </Card>
   );
 }
@@ -148,38 +233,40 @@ function AiSection({ pid }: { pid: string }) {
   return (
     <Card
       title="AI access"
-      subtitle={access === 'sign_in' ? 'Own Claude sign-in' : access === 'api_key' ? 'Claude Console API key' : 'Manual only'}
+      subtitle={access === 'sign_in' ? 'Own Claude sign-in' : access === 'api_key' ? 'Claude Console API key' : 'Manual only: no AI'}
       testId="settings-ai"
       actions={
-        access !== 'manual' && (
-          <button className="btn btn-sm" onClick={() => check.mutate()} disabled={check.isPending} data-testid="ai-check">
-            {check.isPending ? 'Checking…' : 'Check now'}
-          </button>
+        s && (
+          <span className={`badge ${AUTH_TONE[s.status]}`} data-testid="ai-status">
+            {AUTH_TEXT[s.status]}
+          </span>
         )
       }
     >
-      {s && (
-        <p className="row" data-testid="ai-status">
-          <span className={`badge ${s.status === 'ok' ? 'badge-good' : s.status === 'manual' ? '' : 'badge-bad'}`}>{AUTH_TEXT[s.status]}</span>
-          <span className="small muted">{s.message}</span>
-        </p>
-      )}
+      {s?.message && !ok && <p className="small muted">{s.message}</p>}
       {access !== 'manual' && (
-        // The setup steps matter only until the sign-in works, so they open by themselves when it doesn't.
-        <details className="tips" style={{ marginTop: 12 }} open={s != null && !ok}>
-          <summary>How to set up the sign-in</summary>
-          <p className="small" style={{ marginTop: 8 }}>
-            {access === 'sign_in'
-              ? `On ${current?.name}'s own computer, run claude setup-token with their Pro or Max plan. Then, on the home server:`
-              : 'Create a key in the Claude Console, then on the home server:'}
-          </p>
-          <pre className="small" style={{ background: 'var(--surface-2)', padding: 10, borderRadius: 10, overflowX: 'auto' }}>
-            <code data-testid="ai-command">katori set-credential {pid}</code>
-          </pre>
-          <p className="small muted">
-            Credentials stay in a mode-600 file on the server, never in the app or its database. Change the access type under <Link to="/settings/profile">Edit profile</Link>.
-          </p>
-        </details>
+        <>
+          <button className="btn btn-sm" style={{ marginTop: 12 }} onClick={() => check.mutate()} disabled={check.isPending} data-testid="ai-check">
+            {check.isPending ? 'Checking…' : 'Check now'}
+          </button>
+          {/* The setup steps matter only until the sign-in works, so they open by themselves when it doesn't. */}
+          <div className="card-more">
+            <details className="tips" open={s != null && !ok}>
+              <summary>How to set up the sign-in</summary>
+              <p className="small" style={{ marginTop: 8 }}>
+                {access === 'sign_in'
+                  ? `On ${current?.name}'s own computer, run claude setup-token with their Pro or Max plan. Then, on the home server:`
+                  : 'Create a key in the Claude Console, then on the home server:'}
+              </p>
+              <pre className="small code-block">
+                <code data-testid="ai-command">katori set-credential {pid}</code>
+              </pre>
+              <p className="small muted">
+                Credentials stay in a mode-600 file on the server, never in the app or its database. Change the access type under <Link to="/settings/profile">Edit profile</Link>.
+              </p>
+            </details>
+          </div>
+        </>
       )}
     </Card>
   );
@@ -192,6 +279,7 @@ function PinSection({ pid }: { pid: string }) {
   const [pin, setPin] = useState('');
   const [currentPin, setCurrentPin] = useState('');
   const has = current?.hasPin ?? false;
+  const [open, setOpen] = useState(false);
   const pinId = useId();
   const curId = useId();
   const apply = useMutation({
@@ -201,39 +289,58 @@ function PinSection({ pid }: { pid: string }) {
       toast(r.hasPin ? 'PIN set on this profile' : 'PIN removed');
       setPin('');
       setCurrentPin('');
+      setOpen(false);
       void qc.invalidateQueries({ queryKey: ['profiles'] });
     },
   });
   const clean = (v: string) => v.replace(/\D/g, '').slice(0, 4);
+  const ready = pin.length === 4 && (!has || currentPin.length === 4);
   return (
-    <Card title="Profile PIN" subtitle={has ? 'This profile is locked with a PIN on other phones.' : 'Optional: anyone on your Wi-Fi can open any profile without one.'} testId="settings-pin">
-      <form
-        className="form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (pin.length === 4 && (!has || currentPin.length === 4)) apply.mutate(pin);
-        }}
-      >
-        {has && (
-          <Field label="Current PIN" htmlFor={curId}>
-            <input id={curId} className="input" type="password" inputMode="numeric" autoComplete="off" value={currentPin} onChange={(e) => setCurrentPin(clean(e.target.value))} data-testid="pin-current" />
-          </Field>
-        )}
-        <Field label={has ? 'New PIN' : '4-digit PIN'} htmlFor={pinId}>
-          <input id={pinId} className="input" type="password" inputMode="numeric" autoComplete="new-password" value={pin} onChange={(e) => setPin(clean(e.target.value))} data-testid="pin-new" />
-        </Field>
-        {apply.error && <Banner tone="error">{apply.error instanceof Error ? apply.error.message : String(apply.error)}</Banner>}
-        <div className="btn-row">
-          <button className="btn btn-primary" disabled={pin.length !== 4 || (has && currentPin.length !== 4) || apply.isPending} data-testid="pin-set">
-            {has ? 'Change PIN' : 'Set PIN'}
-          </button>
+    <Card
+      title="Profile PIN"
+      subtitle={has ? 'Other phones need the PIN to open this profile.' : 'Anyone on your Wi-Fi can open this profile.'}
+      testId="settings-pin"
+      actions={<span className={`badge ${has ? 'badge-good' : ''}`}>{has ? 'On' : 'Off'}</span>}
+    >
+      {has && !open ? (
+        <button className="btn btn-sm" style={{ marginTop: 4 }} onClick={() => setOpen(true)} data-testid="pin-change">
+          Change or remove
+        </button>
+      ) : (
+        <form
+          className="form"
+          style={{ marginTop: 4 }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (ready) apply.mutate(pin);
+          }}
+        >
           {has && (
-            <button type="button" className="btn" disabled={currentPin.length !== 4 || apply.isPending} onClick={() => apply.mutate(null)} data-testid="pin-remove">
-              Remove PIN
-            </button>
+            <Field label="Current PIN" htmlFor={curId}>
+              <input id={curId} className="input" type="password" inputMode="numeric" autoComplete="off" value={currentPin} onChange={(e) => setCurrentPin(clean(e.target.value))} data-testid="pin-current" />
+            </Field>
           )}
-        </div>
-      </form>
+          <div className="inline-form">
+            <Field label={has ? 'New PIN' : '4-digit PIN'} htmlFor={pinId}>
+              <input id={pinId} className="input" type="password" inputMode="numeric" autoComplete="new-password" placeholder="••••" value={pin} onChange={(e) => setPin(clean(e.target.value))} data-testid="pin-new" />
+            </Field>
+            <button className="btn btn-primary" disabled={!ready || apply.isPending} data-testid="pin-set">
+              {has ? 'Change' : 'Set PIN'}
+            </button>
+          </div>
+          {apply.error && <Banner tone="error">{apply.error instanceof Error ? apply.error.message : String(apply.error)}</Banner>}
+          {has && (
+            <div className="btn-row">
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => setOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-sm btn-ghost btn-danger" disabled={currentPin.length !== 4 || apply.isPending} onClick={() => apply.mutate(null)} data-testid="pin-remove">
+                Remove PIN
+              </button>
+            </div>
+          )}
+        </form>
+      )}
     </Card>
   );
 }
@@ -255,10 +362,10 @@ function HouseholdSection() {
       void qc.invalidateQueries({ queryKey: ['settings'] });
     },
   });
-  if (!s || !data) return <Card title="Household">…</Card>;
+  if (!s || !data) return <Card title="Kitchen measures">…</Card>;
   const set = (patch: Partial<HouseholdSettings>) => setS({ ...s, ...patch });
   return (
-    <Card title="Household" subtitle="Shared by everyone. Weigh your katori and a roti once; the estimates use them." testId="settings-household">
+    <Card title="Kitchen measures" subtitle="Shared by everyone. Weigh your katori and a roti once; the estimates use them." testId="settings-household">
       <form
         className="form"
         onSubmit={(e) => {
@@ -411,53 +518,20 @@ export function Settings() {
         <h1>Settings</h1>
       </div>
       <Segmented
-        label="Settings scope"
+        label="Settings for"
         testId="settings-scope"
         value={scope}
         onChange={setScope}
         options={[
-          { value: 'profile', label: `${p.name}` },
+          { value: 'profile', label: p.name },
           { value: 'household', label: 'Household' },
         ]}
       />
       {scope === 'profile' ? (
         <>
-          <Card
-            title={p.name}
-            subtitle={`${p.sex === 'male' ? 'Male' : 'Female'}, ${p.age} years, ${p.heightCm} cm, ${ACTIVITY_LABELS[p.activity].toLowerCase()}`}
-            testId="settings-profile"
-            actions={
-              <Link className="btn btn-sm" to="/settings/profile" data-testid="edit-profile">
-                Edit
-              </Link>
-            }
-          >
-            <dl className="kv">
-              <dt>Goal</dt>
-              <dd>
-                {p.goal === 'maintain' ? 'Maintain' : `${p.goal === 'lose' ? 'Lose' : 'Gain'} ${p.paceKgWeek} kg a week`}
-                {p.goalWeightKg ? ` to ${p.goalWeightKg} kg` : ''}
-              </dd>
-              <dt>Diet</dt>
-              <dd>{p.diet.vegetarian ? `Vegetarian${p.diet.eggs ? ', eats eggs' : ''}` : 'Non-vegetarian'}</dd>
-              <dt>Meals</dt>
-              <dd className="kv-lines">
-                {p.mealSlots.map((s) => (
-                  <span key={s.name}>
-                    {s.name} <span className="muted">{s.time}</span>
-                  </span>
-                ))}
-              </dd>
-            </dl>
-            <Link className="nav-row" to="/settings/foods" data-testid="link-foods">
-              <span>
-                My foods
-                <span className="small muted">Saved foods for quick add and matching</span>
-              </span>
-              <ChevronRight width={18} height={18} />
-            </Link>
-          </Card>
+          <ProfileHero p={p} />
           <TargetsSection pid={pid} />
+          <PlanCard pid={pid} p={p} />
           <AiSection pid={pid} />
           <PinSection pid={pid} />
           <AppCard />
@@ -472,15 +546,9 @@ export function Settings() {
       ) : (
         <>
           <HouseholdSection />
-          <Card testId="settings-calibration">
-            <Link className="nav-row" to="/settings/calibration" data-testid="link-calibration">
-              <span>
-                Calibration
-                <span className="small muted">Weigh ~10 typical meals once, then see how far the estimates land</span>
-              </span>
-              <ChevronRight width={18} height={18} />
-            </Link>
-          </Card>
+          <section className="card rows-card" aria-label="Calibration" data-testid="settings-calibration">
+            <Row label="Calibration" note="Weigh ~10 typical meals once, then see how far the estimates land" to="/settings/calibration" testId="link-calibration" />
+          </section>
         </>
       )}
     </>

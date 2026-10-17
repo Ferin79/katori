@@ -2165,12 +2165,6 @@ details.disclosure[open] > summary {
 .nav-row .muted {
   font-weight: 500;
 }
-.card .card-head + .nav-row,
-.kv + .nav-row {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid var(--rim);
-}
 
 /* A compact select, e.g. the meal slot on the meal screen. */
 .pill-select {
@@ -2211,6 +2205,138 @@ details.disclosure[open] > summary {
 }
 .avg-hero .badge {
   align-self: center;
+}
+.avg-hero .v .u {
+  font-size: 1rem;
+  font-weight: 550;
+  letter-spacing: 0;
+}
+
+/* Meal slot editor: the name takes what's left; the time box keeps room for "08:30 AM". */
+.slot-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8.75rem auto;
+  align-items: center;
+  gap: 8px;
+}
+.slot-row input[type='time'] {
+  padding-left: 12px;
+  padding-right: 8px;
+}
+.slot-row .btn {
+  padding: 0 10px;
+}
+
+/* ---------- Settings ---------- */
+
+.profile-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.profile-hero .who {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+.profile-hero h2 {
+  font-size: 1.25rem;
+  margin-bottom: 2px;
+}
+.avatar-lg {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 1.125rem;
+  font-weight: 750;
+  background: var(--chip-colour, var(--ink-2));
+}
+
+/* A card of rows: label on the left, value on the right, a chevron when it leads somewhere. */
+.rows-card {
+  padding-top: 16px;
+  padding-bottom: 6px;
+}
+.rows-title {
+  font-size: 1.0625rem;
+  margin-bottom: 4px;
+}
+.srow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 0;
+  border-top: 1px solid var(--rim);
+  color: var(--ink);
+  text-decoration: none;
+}
+.rows-title + .srow,
+.rows-card > .srow:first-child {
+  border-top: 0;
+}
+.srow-label {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  font-weight: 650;
+}
+.srow-note {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ink-3);
+  line-height: 1.35;
+}
+.srow-value {
+  text-align: right;
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  font-weight: 550;
+  min-width: 0;
+  max-width: 62%;
+  overflow-wrap: anywhere;
+}
+.srow-lines {
+  display: grid;
+  gap: 2px;
+}
+.srow-go {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--ink-3);
+}
+a.srow:active {
+  background: var(--surface-2);
+}
+
+/* Extra detail under a card's main content, separated by a hairline. */
+.card-more {
+  margin-top: 14px;
+  border-top: 1px solid var(--rim);
+}
+.card-more > details.tips + details.tips {
+  border-top: 1px solid var(--rim);
+}
+.code-block {
+  background: var(--surface-2);
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  overflow-x: auto;
+  margin: 8px 0;
+}
+/* An input and its button on one line (e.g. the PIN). */
+.inline-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
 }
 
 /* ---------- Utilities ---------- */
@@ -2262,17 +2388,38 @@ details.disclosure[open] > summary {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-/* One entry per line, e.g. meal slots with their times. */
-.kv dd.kv-lines {
-  display: grid;
-  gap: 2px;
-}
+/* Small expanders ("How to measure", "History"): a full-width row with a chevron, like the disclosure cards. */
 details.tips summary {
   cursor: pointer;
   font-weight: 650;
   color: var(--ink-2);
   font-size: 0.9375rem;
-  list-style-position: outside;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+}
+details.tips summary::-webkit-details-marker {
+  display: none;
+}
+details.tips summary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border-right: 2px solid var(--ink-3);
+  border-bottom: 2px solid var(--ink-3);
+  transform: rotate(45deg);
+  transition: transform 150ms ease;
+  flex: none;
+}
+details.tips[open] summary::after {
+  transform: rotate(-135deg);
+}
+details.tips[open] {
+  padding-bottom: 6px;
 }
 details.tips ul {
   margin: 8px 0 0;

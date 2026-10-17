@@ -323,9 +323,9 @@ export function DietFields({ d, set }: { d: Draft; set: Set }) {
         <span className="hint">Meals land in the slot nearest the time you log them.</span>
         <div className="stack">
           {d.mealSlots.map((s, i) => (
-            <div className="row" key={i} data-testid={`ob-slot-${i}`}>
+            <div className="slot-row" key={i} data-testid={`ob-slot-${i}`}>
               <input className="input" aria-label={`Slot ${i + 1} name`} value={s.name} maxLength={24} onChange={(e) => setSlot(i, { name: e.target.value })} data-testid={`ob-slot-name-${i}`} />
-              <input className="input" style={{ maxWidth: 130 }} type="time" aria-label={`Slot ${i + 1} time`} value={s.time} onChange={(e) => setSlot(i, { time: e.target.value })} data-testid={`ob-slot-time-${i}`} />
+              <input className="input" type="time" aria-label={`Slot ${i + 1} time`} value={s.time} onChange={(e) => setSlot(i, { time: e.target.value })} data-testid={`ob-slot-time-${i}`} />
               <button type="button" className="btn btn-ghost btn-sm" aria-label={`Remove slot ${s.name}`} disabled={d.mealSlots.length <= 1} onClick={() => set({ mealSlots: d.mealSlots.filter((_, j) => j !== i) })} data-testid={`ob-slot-remove-${i}`}>
                 ✕
               </button>
