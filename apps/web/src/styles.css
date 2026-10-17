@@ -357,11 +357,6 @@ main {
   font-size: 0.9375rem;
   padding-bottom: 3px;
 }
-.page-kicker {
-  color: var(--ink-3);
-  font-size: 0.9375rem;
-  margin-bottom: 2px;
-}
 
 /* Home greeting */
 .greet {
@@ -909,20 +904,6 @@ main {
   flex-wrap: wrap;
   gap: 8px;
 }
-.chip-scroll {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  margin: 0 -18px;
-  padding: 0 18px 2px;
-}
-.chip-scroll::-webkit-scrollbar {
-  display: none;
-}
-.chip-scroll .chip {
-  flex: none;
-}
 
 .field {
   display: grid;
@@ -995,11 +976,6 @@ select.input {
   gap: 12px;
   align-items: start;
 }
-.grid-3 {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
 .form {
   display: grid;
   gap: 16px;
@@ -1015,7 +991,8 @@ select.input {
   gap: 4px;
   box-shadow: var(--shadow-card);
 }
-.card .seg {
+.card .seg,
+.sheet .seg {
   background: var(--surface-2);
   box-shadow: none;
 }
@@ -1199,12 +1176,12 @@ select.input {
   font-size: 0.8125rem;
   margin-left: 8px;
 }
+/* Wraps rather than cutting off: every item name stays readable. */
 .list-item .meta {
   font-size: 0.875rem;
   color: var(--ink-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 .list-item .end {
   text-align: right;
@@ -1249,118 +1226,174 @@ select.input {
   height: 56px;
 }
 
-/* ---------- Meters ---------- */
+/* ---------- Body: quick logs and the BMI scale ---------- */
 
-.rings {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  justify-content: space-around;
-}
-.ring-wrap {
-  position: relative;
-  width: 112px;
-  height: 112px;
-  flex: none;
-}
-.ring-wrap svg {
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-}
-.ring-center {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-content: center;
-  text-align: center;
-}
-.ring-center .v {
-  font-size: 1.25rem;
-  font-weight: 750;
-}
-.ring-center .l {
-  font-size: 0.75rem;
-  color: var(--ink-3);
-  padding: 0 14px;
-  line-height: 1.25;
-}
-
-.bar-rows {
+.log-card {
   display: grid;
   gap: 14px;
 }
-.bar-row .top {
+.log-head {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: 0.9375rem;
-  margin-bottom: 7px;
-  gap: 8px;
-}
-.bar-row .key {
-  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 600;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
 }
-.bar-row .key .swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+.log-hint {
+  margin-top: -4px;
+  text-align: center;
 }
-.bar-row .val {
-  color: var(--ink-2);
-  font-variant-numeric: tabular-nums;
+/* Facts under the weight: change since last time, distance to goal. */
+.log-facts {
+  display: flex;
+  justify-content: center;
+  gap: 8px 28px;
+  flex-wrap: wrap;
+  margin: -2px 0 0;
+  text-align: center;
 }
-.bar-row .val strong {
-  color: var(--ink);
-  font-weight: 700;
-}
-.bar-track {
-  height: 8px;
-  border-radius: 999px;
-  background: var(--surface-3);
-  overflow: hidden;
-}
-.bar-fill {
-  height: 100%;
-  border-radius: 999px;
-  max-width: 100%;
-}
-
-/* ---------- Body: weight cards and the BMI scale ---------- */
-
-.weight-cards {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-.weight-card {
-  display: grid;
-  gap: 2px;
-  align-content: start;
-}
-.weight-card .k {
-  font-size: 0.875rem;
-  color: var(--ink-3);
-  font-weight: 600;
-}
-.weight-card .v {
-  font-size: 1.75rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-  font-variant-numeric: tabular-nums;
-}
-.weight-card .note {
+.log-facts dt {
   font-size: 0.8125rem;
   color: var(--ink-3);
-  min-height: 1.3em;
+  font-weight: 550;
 }
-.weight-card .btn {
-  margin-top: 12px;
-  justify-self: start;
+.log-facts dd {
+  margin: 0;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A value with − / + either side. */
+.vstep {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.vstep-label {
+  font-weight: 650;
+  font-size: 0.9375rem;
+}
+.vstep-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vstep-row > button {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 50%;
+  border: 0;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 1.375rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+.vstep-row > button:hover {
+  background: var(--surface-3);
+}
+.vstep-row > button:active {
+  transform: scale(0.94);
+}
+.vstep-row > button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.vstep-value {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+  padding: 0 12px;
+  min-height: 44px;
+  align-items: center;
+}
+.vstep-input {
+  width: 4.2ch;
+  border: 0;
+  background: transparent;
+  text-align: right;
+  font-size: 1.0625rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  padding: 0;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.vstep-input::-webkit-outer-spin-button,
+.vstep-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.vstep-input:focus {
+  outline: none;
+}
+.vstep-value:focus-within {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.vstep-unit {
+  color: var(--ink-3);
+  font-size: 0.875rem;
+  font-weight: 550;
+}
+.vstep-list {
+  display: grid;
+  gap: 10px;
+}
+/* The daily weigh-in: one big number in the middle. */
+.vstep-big {
+  justify-content: center;
+}
+.vstep-big .vstep-row {
+  gap: 18px;
+}
+.vstep-big .vstep-row > button {
+  width: 56px;
+  height: 56px;
+  font-size: 1.75rem;
+}
+.vstep-big .vstep-value {
+  background: none;
+  padding: 0 4px;
+  gap: 6px;
+}
+.vstep-big .vstep-input {
+  width: 4ch;
+  text-align: center;
+  font-size: 2.75rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.vstep-big .vstep-unit {
+  font-size: 1.0625rem;
+}
+
+/* The day being logged, as a pill beside the page title. */
+.date-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  font-weight: 650;
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: var(--ink);
+}
+.date-pill.set {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.date-card {
+  display: grid;
+  gap: 10px;
 }
 
 .bmi-head {
@@ -1596,15 +1629,12 @@ table.data tr:last-child td {
 .photo-zone .take:active {
   transform: scale(0.99);
 }
+/* Common phrases wrap onto a second line instead of running off the screen. */
 .suggest {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
   padding-top: 2px;
-}
-.suggest::-webkit-scrollbar {
-  display: none;
 }
 .suggest button {
   flex: none;
@@ -1619,12 +1649,143 @@ table.data tr:last-child td {
   cursor: pointer;
 }
 
+/* When: one line with the slot and time; "Change" opens the controls. */
+.when-card {
+  padding: 14px 16px 14px 18px;
+}
+.when-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.when-text {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  min-width: 0;
+}
+.when-text strong {
+  font-size: 1.0625rem;
+}
+
+/* Saved foods: name and serving on the left, calories and a + on the right. */
+.food-list {
+  display: grid;
+}
+.food-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 0;
+  border: 0;
+  border-top: 1px solid var(--rim);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+}
+.food-row:first-child {
+  border-top: 0;
+  padding-top: 2px;
+}
+.food-row:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+.food-main {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.food-name {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.food-meta {
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+.food-kcal {
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.food-kcal small {
+  font-size: 0.75rem;
+  font-weight: 550;
+  color: var(--ink-3);
+  margin-left: 3px;
+}
+.food-add {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.food-row:hover .food-add,
+.food-row:active .food-add {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.food-go {
+  width: 16px;
+  height: 16px;
+  color: var(--ink-3);
+}
+.manage-foods {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rim);
+  color: var(--ink-2);
+}
+
+/* Also for: a checkbox, the person's initials and their portion. */
+.also-row {
+  min-height: 56px;
+  gap: 10px;
+}
+.also-row .avatar {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--chip-colour, var(--ink-2));
+}
+.also-name {
+  font-weight: 650;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.check {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  accent-color: var(--primary);
+}
+
 /* An action pinned above the tab bar, within thumb reach. */
 .sticky-actions {
   position: sticky;
   bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 6px);
   z-index: 5;
-  padding: 8px 0;
+  /* Fade the page out behind the button so content scrolling under it doesn't show through. */
+  margin: 0 -16px;
+  padding: 18px 16px 8px;
+  background: linear-gradient(to top, var(--page) 62%, color-mix(in srgb, var(--page) 0%, transparent));
 }
 .sticky-actions .btn-primary {
   box-shadow: var(--shadow-float);
@@ -1632,6 +1793,13 @@ table.data tr:last-child td {
 
 .sticky-actions.bare {
   bottom: calc(env(safe-area-inset-bottom) + 10px);
+}
+/* Inside a card (onboarding), fade to the card's white instead of the page grey. */
+.card .sticky-actions {
+  margin: 0 -18px -18px;
+  padding: 14px 18px 18px;
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+  background: linear-gradient(to top, var(--surface) 70%, color-mix(in srgb, var(--surface) 0%, transparent));
 }
 .brand {
   display: inline-flex;
@@ -1758,12 +1926,31 @@ button.item-macros:hover {
   font-weight: 800;
   letter-spacing: -0.02em;
 }
+.totals-macros {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--primary-ink) 65%, transparent);
+}
+.totals-macros b {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--primary-ink);
+  font-variant-numeric: tabular-nums;
+}
 .totals-bar .btn-primary {
   background: var(--accent);
   color: var(--accent-ink);
 }
 .totals-bar .btn-primary:hover {
   background: color-mix(in srgb, var(--accent) 88%, #000);
+}
+/* Nothing to save yet: clearly off, on the dark bar. */
+.totals-bar .btn-primary:disabled {
+  background: color-mix(in srgb, var(--primary-ink) 14%, transparent);
+  color: color-mix(in srgb, var(--primary-ink) 55%, transparent);
 }
 
 .spinner {
@@ -1906,6 +2093,126 @@ button.item-macros:hover {
   accent-color: var(--accent);
 }
 
+/* ---------- Disclosures, settings rows ---------- */
+
+/* A card that opens on tap, for things you need now and then (history, import, system). */
+details.disclosure > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 1.0625rem;
+  min-height: 28px;
+}
+details.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+details.disclosure > summary::after {
+  content: '';
+  width: 9px;
+  height: 9px;
+  margin-right: 4px;
+  border-right: 2px solid var(--ink-3);
+  border-bottom: 2px solid var(--ink-3);
+  transform: rotate(45deg);
+  transition: transform 150ms ease;
+  flex: none;
+}
+details.disclosure[open] > summary::after {
+  transform: rotate(-135deg);
+}
+details.disclosure > summary .muted {
+  font-weight: 550;
+  font-size: 0.875rem;
+  margin-left: auto;
+}
+details.disclosure[open] > summary {
+  margin-bottom: 14px;
+}
+
+.sub-section h3 {
+  margin-bottom: 4px;
+}
+.sub-section + .sub-section {
+  border-top: 1px solid var(--rim);
+  padding-top: 16px;
+}
+.sub-section .btn-row {
+  margin-top: 10px;
+}
+.stack-lg {
+  display: grid;
+  gap: 16px;
+}
+
+/* A row that leads to another screen. */
+.nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--ink);
+  font-weight: 650;
+}
+.nav-row > span {
+  display: grid;
+  gap: 2px;
+}
+.nav-row .muted {
+  font-weight: 500;
+}
+.card .card-head + .nav-row,
+.kv + .nav-row {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rim);
+}
+
+/* A compact select, e.g. the meal slot on the meal screen. */
+.pill-select {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 30px 0 14px;
+  min-height: 36px;
+  font-weight: 650;
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: var(--ink);
+  background-color: var(--surface-2);
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%), linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 52%, calc(100% - 13px) 52%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+
+/* Month averages: one headline number, the rest as labelled figures. */
+.avg-hero {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: -4px 0 16px;
+}
+.avg-hero .v {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.avg-hero .u {
+  color: var(--ink-3);
+  font-weight: 550;
+}
+.avg-hero .badge {
+  align-self: center;
+}
+
 /* ---------- Utilities ---------- */
 
 .empty {
@@ -1952,6 +2259,13 @@ button.item-macros:hover {
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 650;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* One entry per line, e.g. meal slots with their times. */
+.kv dd.kv-lines {
+  display: grid;
+  gap: 2px;
 }
 details.tips summary {
   cursor: pointer;

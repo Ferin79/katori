@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { MyFood, MyFoodInput } from '@katori/shared';
 import { api } from '../api';
+import { ChevronRight } from '../components/Icons';
 import { Banner, Card, ErrorNote, Field, Loading, NumberInput, Segmented, Sheet } from '../components/ui';
 import { kcal, num1 } from '../lib/format';
 import { useToast } from '../lib/useToast';
@@ -26,6 +27,14 @@ function FoodSheet({ pid, food, onClose }: { pid: string; food: MyFood | null; o
       toast(`Saved "${x.name}"`);
       void qc.invalidateQueries({ queryKey: ['foods'] });
       void qc.invalidateQueries({ queryKey: ['quickFoods'] });
+      onClose();
+    },
+  });
+  const del = useMutation({
+    mutationFn: () => api.deleteFood(pid, food!.id),
+    onSuccess: () => {
+      toast(`Deleted "${food!.name}"`);
+      void qc.invalidateQueries({ queryKey: ['foods'] });
       onClose();
     },
   });
@@ -73,6 +82,17 @@ function FoodSheet({ pid, food, onClose }: { pid: string; food: MyFood | null; o
         <button className="btn btn-primary" disabled={!f.name.trim() || save.isPending} data-testid="food-save">
           Save
         </button>
+        {food && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-danger"
+            disabled={del.isPending}
+            onClick={() => window.confirm(`Delete ${food.name}? Meals already logged keep their numbers.`) && del.mutate()}
+            data-testid={`food-delete-${food.id}`}
+          >
+            Delete {food.name}
+          </button>
+        )}
       </form>
     </Sheet>
   );
@@ -81,38 +101,32 @@ function FoodSheet({ pid, food, onClose }: { pid: string; food: MyFood | null; o
 export function Foods() {
   const pid = usePid();
   const { current } = useProfiles();
-  const qc = useQueryClient();
   const { data: foods, error, isLoading } = useQuery({ queryKey: ['foods', pid], queryFn: () => api.foods(pid) });
   const [editing, setEditing] = useState<MyFood | 'new' | null>(null);
-  const del = useMutation({
-    mutationFn: (id: number) => api.deleteFood(pid, id),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['foods'] }),
-  });
   if (isLoading) return <Loading />;
   if (error || !foods) return <ErrorNote error={error} />;
   const household = foods.filter((f) => f.household);
   const mine = foods.filter((f) => !f.household);
+  // One tappable row per food; editing and deleting happen in the sheet.
   const list = (items: MyFood[], testId: string) =>
     items.length === 0 ? (
       <p className="muted small">None yet.</p>
     ) : (
-      <div className="list" data-testid={testId}>
+      <div className="food-list" data-testid={testId}>
         {items.map((f) => (
-          <div className="list-item" key={f.id} data-testid={`food-${f.id}`}>
-            <div className="grow">
-              <div className="title">{f.name}</div>
-              <div className="meta">
-                {f.servingDesc}, {f.servingG} g, {num1(f.protein_g)} g protein{f.uses ? `, used ${f.uses} times this month` : ''}
-              </div>
-            </div>
-            <div className="end">{kcal(f.kcal)} kcal</div>
-            <button className="btn btn-sm" onClick={() => setEditing(f)} data-testid={`food-edit-${f.id}`}>
-              Edit
-            </button>
-            <button className="btn btn-sm btn-ghost btn-danger" aria-label={`Delete ${f.name}`} onClick={() => window.confirm(`Delete ${f.name}?`) && del.mutate(f.id)} data-testid={`food-delete-${f.id}`}>
-              ✕
-            </button>
-          </div>
+          <button key={f.id} type="button" className="food-row" onClick={() => setEditing(f)} aria-label={`Edit ${f.name}`} data-testid={`food-edit-${f.id}`}>
+            <span className="food-main" data-testid={`food-${f.id}`}>
+              <span className="food-name">{f.name}</span>
+              <span className="food-meta">
+                {f.servingDesc}, {f.servingG} g, {num1(f.protein_g)} g protein
+              </span>
+            </span>
+            <span className="food-kcal">
+              {kcal(f.kcal)}
+              <small>kcal</small>
+            </span>
+            <ChevronRight width={16} height={16} className="icon food-go" />
+          </button>
         ))}
       </div>
     );
@@ -124,7 +138,7 @@ export function Foods() {
           + New
         </button>
       </div>
-      <p className="small muted">Dishes you eat often, with real numbers. When an estimate matches one, your numbers replace the AI's, and the most-used become quick-add chips.</p>
+      <p className="small muted">Dishes you eat often, with real numbers. Estimates use them when the name matches, and Add meal logs them in one tap.</p>
       <Card title="Household" subtitle="Everyone sees these; each person logs their own portion" testId="foods-household">
         {list(household, 'foods-household-list')}
       </Card>

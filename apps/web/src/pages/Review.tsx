@@ -67,7 +67,7 @@ function FoodPicker({ pid, title, onPick, onClose }: { pid: string; title: strin
       />
       {tab === 'saved' && (
         <div className="list" data-testid="picker-saved">
-          {foods.length === 0 && <p className="muted">No saved foods yet. Use "Save as my food" on any reviewed line.</p>}
+          {foods.length === 0 && <p className="muted">No saved foods yet. Add them in Settings → My foods.</p>}
           {foods.map((f) => (
             <button key={f.id} className="list-item" style={{ background: 'none', border: 0, borderTop: '1px solid var(--border)', textAlign: 'left', cursor: 'pointer' }} onClick={() => onPick(fromFood(f))} data-testid={`pick-food-${f.id}`}>
               <div className="grow">
@@ -135,49 +135,6 @@ function FoodPicker({ pid, title, onPick, onClose }: { pid: string; title: strin
           </button>
         </form>
       )}
-    </Sheet>
-  );
-}
-
-function SaveFoodSheet({ pid, line, onSaved, onClose }: { pid: string; line: Line; onSaved: (f: MyFood) => void; onClose: () => void }) {
-  const [name, setName] = useState(line.name);
-  const [servingDesc, setServingDesc] = useState(line.portion || '1 serving');
-  const [household, setHousehold] = useState(true);
-  const toast = useToast();
-  const nameId = useId();
-  const servId = useId();
-  const save = useMutation({
-    mutationFn: () => api.createFood(pid, { name: name.trim(), aliases: name.trim().toLowerCase() !== line.name.toLowerCase() ? [line.name] : [], servingDesc: servingDesc.trim(), servingG: line.grams, kcal: line.kcal, protein_g: line.protein_g, carbs_g: line.carbs_g, fat_g: line.fat_g, fiber_g: line.fiber_g, household }),
-    onSuccess: (f) => {
-      toast(`Saved "${f.name}"${f.household ? ' for the household' : ''}`);
-      onSaved(f);
-    },
-  });
-  return (
-    <Sheet title="Save as my food" onClose={onClose} testId="save-food-sheet">
-      <p className="small muted">
-        Next time this matches, your numbers replace the AI's. Per {servingDesc || 'serving'} ({line.grams} g): {kcal(line.kcal)} kcal, protein {num1(line.protein_g)} g.
-      </p>
-      <Field label="Name" htmlFor={nameId}>
-        <input id={nameId} className="input" value={name} onChange={(e) => setName(e.target.value)} data-testid="save-food-name" />
-      </Field>
-      <Field label="Serving" htmlFor={servId} hint="How you'd say one portion: 1 katori, 1 glass, 2 rotis.">
-        <input id={servId} className="input" value={servingDesc} onChange={(e) => setServingDesc(e.target.value)} data-testid="save-food-serving" />
-      </Field>
-      <Segmented
-        label="Who it's for"
-        testId="save-food-scope"
-        value={household ? 'household' : 'mine'}
-        onChange={(v) => setHousehold(v === 'household')}
-        options={[
-          { value: 'household', label: 'Household' },
-          { value: 'mine', label: 'Just me' },
-        ]}
-      />
-      {save.error && <Banner tone="error">{save.error instanceof Error ? save.error.message : String(save.error)}</Banner>}
-      <button className="btn btn-primary" disabled={!name.trim() || !servingDesc.trim() || save.isPending} onClick={() => save.mutate()} data-testid="save-food-submit">
-        Save
-      </button>
     </Sheet>
   );
 }
@@ -275,8 +232,7 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
   const toast = useToast();
   const [lines, setLines] = useState<Line[]>(() => meal.items.map((i) => lineFrom(i)));
   const [slot, setSlot] = useState(meal.slot);
-  const [picker, setPicker] = useState<{ mode: 'add' } | { mode: 'swap'; key: string } | null>(null);
-  const [saving, setSaving] = useState<Line | null>(null);
+  const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Line | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const totals = useMemo(() => sumNutrients(lines), [lines]);
@@ -338,7 +294,20 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
         </Card>
       )}
 
-      <Card title="Items" subtitle="Change grams and the macros rescale, or tap the numbers to type your own. Low-confidence lines are highlighted." testId="items">
+      <Card
+        title="Items"
+        subtitle="Tap the numbers to edit them."
+        testId="items"
+        actions={
+          <select className="pill-select" aria-label="Meal slot" value={slot} onChange={(e) => setSlot(e.target.value)} data-testid="review-slot">
+            {slots.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        }
+      >
         <div className="stack">
           {lines.length === 0 && <p className="muted">No items yet. Add what you ate below.</p>}
           {lines.map((l, i) => (
@@ -356,7 +325,7 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
                       ⚠ Check this
                     </span>
                   )}
-                  <span className="badge">{SOURCE_LABEL[l.source]}</span>
+                  {l.source !== 'ai' && <span className="badge">{SOURCE_LABEL[l.source]}</span>}
                 </div>
               </div>
               <button
@@ -402,48 +371,38 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
                 <button className="btn btn-sm" onClick={() => setEditing(l)} aria-label={`Edit nutrition for ${l.name}`} data-testid={`item-edit-${i}`}>
                   <PencilIcon width={16} height={16} /> Edit
                 </button>
-                <button className="btn btn-sm" onClick={() => setPicker({ mode: 'swap', key: l.key })} data-testid={`item-swap-${i}`}>
-                  Swap
-                </button>
-                {l.source !== 'my_food' && (
-                  <button className="btn btn-sm" onClick={() => setSaving(l)} data-testid={`item-save-${i}`}>
-                    Save as my food
-                  </button>
-                )}
                 <button className="btn btn-sm btn-ghost btn-danger" style={{ marginLeft: 'auto', padding: '0 8px' }} aria-label={`Remove ${l.name}`} title="Remove" onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} data-testid={`item-remove-${i}`}>
                   <XIcon width={18} height={18} />
                 </button>
               </div>
             </div>
           ))}
-          <button className="btn" onClick={() => setPicker({ mode: 'add' })} data-testid="item-add">
+          <button className="btn" onClick={() => setAdding(true)} data-testid="item-add">
             + Add item
           </button>
         </div>
       </Card>
 
-      <Card title="Meal slot" testId="review-slot">
-        <div className="chip-group">
-          {slots.map((s) => (
-            <button key={s} className="chip" aria-pressed={slot === s} onClick={() => setSlot(s)} data-testid={`review-slot-${s}`}>
-              {s}
-            </button>
-          ))}
-        </div>
-      </Card>
-
       <div className="totals-bar" data-testid="review-totals">
         <div className="row between">
-          <div>
-            <strong data-testid="review-total-kcal">{kcal(totals.kcal)} kcal</strong>
-            <div className="small muted">
-              <span>Protein {num1(totals.protein_g)} g</span> <span style={{ marginLeft: 8 }}>Carbs {num1(totals.carbs_g)} g</span>{' '}
-              <span style={{ marginLeft: 8 }}>Fat {num1(totals.fat_g)} g</span> <span style={{ marginLeft: 8 }}>Fiber {num1(totals.fiber_g)} g</span>
-            </div>
-          </div>
+          <strong data-testid="review-total-kcal">{kcal(totals.kcal)} kcal</strong>
           <button className="btn btn-primary" onClick={() => confirm.mutate()} disabled={confirm.isPending || (confirmed && !dirty)} data-testid="review-confirm">
             {confirmed ? 'Save changes' : 'Confirm'}
           </button>
+        </div>
+        <div className="totals-macros" data-testid="review-total-macros">
+          <span>
+            <b>{num1(totals.protein_g)} g</b>protein
+          </span>
+          <span>
+            <b>{num1(totals.carbs_g)} g</b>carbs
+          </span>
+          <span>
+            <b>{num1(totals.fat_g)} g</b>fat
+          </span>
+          <span>
+            <b>{num1(totals.fiber_g)} g</b>fiber
+          </span>
         </div>
         {dirty && (
           <p className="small" data-testid="review-unsaved">
@@ -453,26 +412,14 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
         {confirm.error && <p className="delta-bad small">{confirm.error instanceof Error ? confirm.error.message : String(confirm.error)}</p>}
       </div>
 
-      {picker && (
+      {adding && (
         <FoodPicker
           pid={pid}
-          title={picker.mode === 'add' ? 'Add item' : 'Swap to…'}
-          onClose={() => setPicker(null)}
+          title="Add item"
+          onClose={() => setAdding(false)}
           onPick={(l) => {
-            if (picker.mode === 'add') setLines((ls) => [...ls, l]);
-            else
-              setLines((ls) =>
-                ls.map((x) => {
-                  if (x.key !== picker.key) return x;
-                  // Keep the grams you ate when swapping to a saved food.
-                  if (l.source === 'my_food' && x.grams > 0 && l.base.grams > 0) {
-                    const scaled = rescaleToGrams(l.base, x.grams);
-                    return { ...l, ...scaled, grams: x.grams, portion: `${x.grams} g` };
-                  }
-                  return l;
-                }),
-              );
-            setPicker(null);
+            setLines((ls) => [...ls, l]);
+            setAdding(false);
           }}
         />
       )}
@@ -488,19 +435,6 @@ function Editor({ pid, meal, slots }: { pid: string; meal: Meal; slots: string[]
             // no longer "check this", and the base that later gram changes rescale from.
             update(editing.key, (x) => (changed ? { ...x, name, ...n, source: 'manual', myFoodId: null, confidence: 'high', base: { grams: x.grams, portion: x.portion, ...n } } : { ...x, name }));
             setEditing(null);
-          }}
-        />
-      )}
-      {saving && (
-        <SaveFoodSheet
-          pid={pid}
-          line={saving}
-          onClose={() => setSaving(null)}
-          onSaved={(f) => {
-            update(saving.key, (x) => ({ ...x, source: 'my_food', myFoodId: f.id, name: f.name }));
-            void qc.invalidateQueries({ queryKey: ['foods'] });
-            void qc.invalidateQueries({ queryKey: ['quickFoods'] });
-            setSaving(null);
           }}
         />
       )}

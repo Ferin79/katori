@@ -1,4 +1,4 @@
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { addDays, toDateStr } from '@katori/shared';
 import { api } from '../api';
@@ -7,20 +7,7 @@ import { Banner, Card, ErrorNote, Loading, SectionHead } from '../components/ui'
 import { dayMonth, dayShort, fullDate, kcal } from '../lib/format';
 import { useToast } from '../lib/useToast';
 import { usePid, useProfiles } from '../profile';
-import {
-  BodyCompCard,
-  EnergyCard,
-  Last7Card,
-  MacroTiles,
-  ProteinCard,
-  SlotsCard,
-  StreakCard,
-  TodayCard,
-  TodayMealsCard,
-  TopCard,
-  WaistCard,
-  WeightCard,
-} from './home/cards';
+import { Last7Card, MacroTiles, StreakCard, TodayCard, TodayMealsCard } from './home/cards';
 
 function SuggestionCard({ pid, message, current, suggested }: { pid: string; message: string; current: number; suggested: number }) {
   const qc = useQueryClient();
@@ -124,27 +111,8 @@ export function Home() {
           <SectionHead title={isToday ? 'This week' : `Week to ${dayMonth(d.date)}`} />
           <div className="group">
             <Last7Card d={d} />
-            <EnergyCard d={d} />
-            <ProteinCard d={d} />
-          </div>
-
-          <SectionHead title="Weight and body" />
-          <div className="group">
-            <WeightCard d={d} />
-            <BodyCompCard d={d} />
-            <WaistCard d={d} />
-          </div>
-
-          <SectionHead title="Habits" />
-          <div className="group">
             <StreakCard d={d} />
-            <SlotsCard d={d} />
-            <TopCard d={d} />
           </div>
-
-          <Link to="/progress" className="btn btn-outline btn-block" data-testid="home-to-progress">
-            See Month and Journey
-          </Link>
         </>
       )}
     </>

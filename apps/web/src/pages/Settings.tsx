@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ACTIVITY_LABELS, type AuthState, type HouseholdSettings, type ManualTargetInput } from '@katori/shared';
 import { api, setUnlockToken } from '../api';
+import { ChevronRight } from '../components/Icons';
 import { AppCard } from '../components/Install';
 import { Banner, Card, ErrorNote, Field, Loading, NumberInput, Segmented } from '../components/ui';
 import { dayMonth, kcal } from '../lib/format';
@@ -143,16 +144,31 @@ function AiSection({ pid }: { pid: string }) {
     },
   });
   const access = current?.aiAccess;
+  const ok = s?.status === 'ok' || s?.status === 'manual';
   return (
-    <Card title="AI access" subtitle={access === 'sign_in' ? 'Own Claude sign-in' : access === 'api_key' ? 'Claude Console API key' : 'Manual only'} testId="settings-ai">
+    <Card
+      title="AI access"
+      subtitle={access === 'sign_in' ? 'Own Claude sign-in' : access === 'api_key' ? 'Claude Console API key' : 'Manual only'}
+      testId="settings-ai"
+      actions={
+        access !== 'manual' && (
+          <button className="btn btn-sm" onClick={() => check.mutate()} disabled={check.isPending} data-testid="ai-check">
+            {check.isPending ? 'Checking…' : 'Check now'}
+          </button>
+        )
+      }
+    >
       {s && (
-        <p data-testid="ai-status">
-          <span className={`badge ${s.status === 'ok' ? '' : s.status === 'manual' ? '' : 'badge-status-failed'}`}>{AUTH_TEXT[s.status]}</span> <span className="small muted">{s.message}</span>
+        <p className="row" data-testid="ai-status">
+          <span className={`badge ${s.status === 'ok' ? 'badge-good' : s.status === 'manual' ? '' : 'badge-bad'}`}>{AUTH_TEXT[s.status]}</span>
+          <span className="small muted">{s.message}</span>
         </p>
       )}
       {access !== 'manual' && (
-        <>
-          <p className="small" style={{ marginTop: 10 }}>
+        // The setup steps matter only until the sign-in works, so they open by themselves when it doesn't.
+        <details className="tips" style={{ marginTop: 12 }} open={s != null && !ok}>
+          <summary>How to set up the sign-in</summary>
+          <p className="small" style={{ marginTop: 8 }}>
             {access === 'sign_in'
               ? `On ${current?.name}'s own computer, run claude setup-token with their Pro or Max plan. Then, on the home server:`
               : 'Create a key in the Claude Console, then on the home server:'}
@@ -160,15 +176,11 @@ function AiSection({ pid }: { pid: string }) {
           <pre className="small" style={{ background: 'var(--surface-2)', padding: 10, borderRadius: 10, overflowX: 'auto' }}>
             <code data-testid="ai-command">katori set-credential {pid}</code>
           </pre>
-          <p className="small muted">Credentials stay in a mode-600 file on the server, never in the app or its database. Each profile uses only its own.</p>
-          <button className="btn btn-sm" style={{ marginTop: 10 }} onClick={() => check.mutate()} disabled={check.isPending} data-testid="ai-check">
-            {check.isPending ? 'Checking…' : 'Check now'}
-          </button>
-        </>
+          <p className="small muted">
+            Credentials stay in a mode-600 file on the server, never in the app or its database. Change the access type under <Link to="/settings/profile">Edit profile</Link>.
+          </p>
+        </details>
       )}
-      <p className="small muted" style={{ marginTop: 10 }}>
-        Change the access type under <Link to="/settings/profile">Edit profile</Link>.
-      </p>
     </Card>
   );
 }
@@ -246,7 +258,7 @@ function HouseholdSection() {
   if (!s || !data) return <Card title="Household">…</Card>;
   const set = (patch: Partial<HouseholdSettings>) => setS({ ...s, ...patch });
   return (
-    <Card title="Household" subtitle="Shared by everyone. Weigh your katori and a roti once; estimates use these." testId="settings-household">
+    <Card title="Household" subtitle="Shared by everyone. Weigh your katori and a roti once; the estimates use them." testId="settings-household">
       <form
         className="form"
         onSubmit={(e) => {
@@ -260,23 +272,28 @@ function HouseholdSection() {
           <NumberInput label="Ladle" unit="ml" value={s.ladleMl} onChange={(v) => set({ ladleMl: v ?? 60 })} testId="set-ladle" />
           <NumberInput label="Oil per serving" unit="ml" value={s.oilPerServingMl} onChange={(v) => set({ oilPerServingMl: v ?? 5 })} testId="set-oil" hint="1 tsp ≈ 5 ml" />
         </div>
-        <Field label="Model" htmlFor={modelId} hint="Sonnet is the default; try Opus for a hard thali.">
-          <select id={modelId} className="input" value={s.model} onChange={(e) => set({ model: e.target.value as HouseholdSettings['model'] })} data-testid="set-model">
-            <option value="sonnet">Sonnet</option>
-            <option value="opus">Opus</option>
-            <option value="haiku">Haiku</option>
-          </select>
-        </Field>
-        <label className="toggle">
-          <span>
-            Ground estimates in IFCT / INDB
-            <span className="small muted" style={{ display: 'block' }}>
-              {data.system.reference.count ? `${data.system.reference.count.toLocaleString()} reference foods loaded` : 'Not loaded: run katori import-reference on the server'}
-            </span>
-          </span>
-          <input type="checkbox" checked={s.referenceLookup} onChange={(e) => set({ referenceLookup: e.target.checked })} data-testid="set-reference" />
-        </label>
-        <NumberInput label="Calibration pass mark" unit="± %" value={s.calibrationTolerancePct} onChange={(v) => set({ calibrationTolerancePct: v ?? 15 })} testId="set-tolerance" />
+        <details className="tips" data-testid="set-ai-options">
+          <summary>AI options</summary>
+          <div className="form" style={{ marginTop: 12 }}>
+            <Field label="Model" htmlFor={modelId} hint="Sonnet is the default; try Opus for a hard thali.">
+              <select id={modelId} className="input" value={s.model} onChange={(e) => set({ model: e.target.value as HouseholdSettings['model'] })} data-testid="set-model">
+                <option value="sonnet">Sonnet</option>
+                <option value="opus">Opus</option>
+                <option value="haiku">Haiku</option>
+              </select>
+            </Field>
+            <label className="toggle">
+              <span>
+                Ground estimates in IFCT / INDB
+                <span className="small muted" style={{ display: 'block' }}>
+                  {data.system.reference.count ? `${data.system.reference.count.toLocaleString()} reference foods loaded` : 'Not loaded: run katori import-reference on the server'}
+                </span>
+              </span>
+              <input type="checkbox" checked={s.referenceLookup} onChange={(e) => set({ referenceLookup: e.target.checked })} data-testid="set-reference" />
+            </label>
+            <NumberInput label="Calibration pass mark" unit="± %" value={s.calibrationTolerancePct} onChange={(v) => set({ calibrationTolerancePct: v ?? 15 })} testId="set-tolerance" />
+          </div>
+        </details>
         {save.error && <Banner tone="error">{save.error instanceof Error ? save.error.message : String(save.error)}</Banner>}
         <button className="btn btn-primary" disabled={save.isPending} data-testid="household-save">
           Save household settings
@@ -292,7 +309,9 @@ function SystemSection({ pid }: { pid: string }) {
   const sys = data?.system;
   return (
     <>
-      <Card title="Export" subtitle="A human-readable copy; keep one each month" testId="settings-export">
+      <section className="sub-section" aria-label="Export" data-testid="settings-export">
+        <h3>Export</h3>
+        <p className="small muted">A spreadsheet copy of this profile; keep one each month.</p>
         <div className="btn-row">
           <a className="btn" href={api.exportUrl(pid, 'meals')} download data-testid="export-meals">
             Meals CSV
@@ -301,21 +320,23 @@ function SystemSection({ pid }: { pid: string }) {
             Body CSV
           </a>
         </div>
-      </Card>
-      <Card title="Backups" testId="settings-backups">
+      </section>
+      <section className="sub-section" aria-label="Backups" data-testid="settings-backups">
+        <h3>Backups</h3>
         {sys?.backup.configured ? (
-          <p data-testid="backup-status">
+          <p className="small" data-testid="backup-status">
             {sys.backup.ok ? '✓' : '⚠'} Last backup {sys.backup.lastAt ? new Date(sys.backup.lastAt).toLocaleString() : 'never'}
-            {sys.backup.dest && <span className="small muted" style={{ display: 'block' }}>{sys.backup.dest}</span>}
-            {sys.backup.message && <span className="small delta-bad" style={{ display: 'block' }}>{sys.backup.message}</span>}
+            {sys.backup.dest && <span className="muted" style={{ display: 'block' }}>{sys.backup.dest}</span>}
+            {sys.backup.message && <span className="delta-bad" style={{ display: 'block' }}>{sys.backup.message}</span>}
           </p>
         ) : (
           <p className="small muted" data-testid="backup-status">
             Not set up on this machine. On the home server the nightly katori-backup timer snapshots the database and photos (see deploy/README).
           </p>
         )}
-      </Card>
-      <Card title="System" testId="settings-system">
+      </section>
+      <section className="sub-section" aria-label="System" data-testid="settings-system">
+        <h3>System</h3>
         {sys && (
           <dl className="kv">
             <dt>Estimates run by</dt>
@@ -345,7 +366,7 @@ function SystemSection({ pid }: { pid: string }) {
             </table>
           </details>
         )}
-      </Card>
+      </section>
     </>
   );
 }
@@ -365,14 +386,16 @@ function DangerSection({ pid }: { pid: string }) {
     },
   });
   return (
-    <Card title="Delete profile" subtitle="Deletes this person's meals, body logs, targets and saved foods. Back up first." testId="settings-danger">
-      <div className="form">
+    <section className="sub-section" aria-label="Delete profile" data-testid="settings-danger">
+      <h3>Delete profile</h3>
+      <p className="small muted">Deletes this person's meals, body logs, targets and saved foods. Export first.</p>
+      <div className="form" style={{ marginTop: 10 }}>
         <input className="input" placeholder={`Type ${current?.name} to confirm`} aria-label="Type the profile name to confirm" value={confirmName} onChange={(e) => setConfirmName(e.target.value)} data-testid="delete-confirm" />
         <button className="btn btn-danger" disabled={confirmName !== current?.name || del.isPending} onClick={() => del.mutate()} data-testid="delete-profile">
           Delete {current?.name}
         </button>
       </div>
-    </Card>
+    </section>
   );
 }
 
@@ -418,27 +441,44 @@ export function Settings() {
               <dt>Diet</dt>
               <dd>{p.diet.vegetarian ? `Vegetarian${p.diet.eggs ? ', eats eggs' : ''}` : 'Non-vegetarian'}</dd>
               <dt>Meals</dt>
-              <dd>{p.mealSlots.map((s) => `${s.name} ${s.time}`).join(', ')}</dd>
+              <dd className="kv-lines">
+                {p.mealSlots.map((s) => (
+                  <span key={s.name}>
+                    {s.name} <span className="muted">{s.time}</span>
+                  </span>
+                ))}
+              </dd>
             </dl>
-            <div className="btn-row" style={{ marginTop: 12 }}>
-              <Link className="btn btn-sm" to="/settings/foods" data-testid="link-foods">
+            <Link className="nav-row" to="/settings/foods" data-testid="link-foods">
+              <span>
                 My foods
-              </Link>
-            </div>
+                <span className="small muted">Saved foods for quick add and matching</span>
+              </span>
+              <ChevronRight width={18} height={18} />
+            </Link>
           </Card>
           <TargetsSection pid={pid} />
           <AiSection pid={pid} />
           <PinSection pid={pid} />
           <AppCard />
-          <SystemSection pid={pid} />
-          <DangerSection pid={pid} />
+          <details className="card disclosure" data-testid="settings-more">
+            <summary>Data and system</summary>
+            <div className="stack-lg">
+              <SystemSection pid={pid} />
+              <DangerSection pid={pid} />
+            </div>
+          </details>
         </>
       ) : (
         <>
           <HouseholdSection />
-          <Card title="Calibration" subtitle="Weigh ~10 typical meals once, then see how far the estimates land" testId="settings-calibration">
-            <Link className="btn" to="/settings/calibration" data-testid="link-calibration">
-              Open calibration
+          <Card testId="settings-calibration">
+            <Link className="nav-row" to="/settings/calibration" data-testid="link-calibration">
+              <span>
+                Calibration
+                <span className="small muted">Weigh ~10 typical meals once, then see how far the estimates land</span>
+              </span>
+              <ChevronRight width={18} height={18} />
             </Link>
           </Card>
         </>

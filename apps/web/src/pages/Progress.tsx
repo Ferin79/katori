@@ -6,8 +6,8 @@ import { addMonths, monthOf, toDateStr, type JourneyView, type MonthView } from 
 import { api } from '../api';
 import { axisProps, C, dayMs, first, gridProps, Legend, msToDate, niceTicks, Tip, type TipProps } from '../components/charts';
 import { ChevronLeft, ChevronRight } from '../components/Icons';
-import { Banner, Card, ChartCard, ErrorNote, Loading, Segmented, Spinner } from '../components/ui';
-import { compact, dayMonth, fullDate, grams, kcal, kg, longDate, monthName, monthShort, num1, pct, signed } from '../lib/format';
+import { Banner, Card, ChartCard, ErrorNote, Loading, MiniStats, Segmented, Spinner } from '../components/ui';
+import { compact, dayMonth, fullDate, kcal, kg, longDate, monthName, monthShort, num1, pct, signed } from '../lib/format';
 import { usePid, useProfiles } from '../profile';
 
 function RecapCard({ pid, month }: { pid: string; month: MonthView }) {
@@ -71,36 +71,29 @@ function MonthTab({ pid }: { pid: string }) {
       {m && (
         <>
           <Card title="Averages" subtitle={`Over ${m.averages.loggedDays} logged day${m.averages.loggedDays === 1 ? '' : 's'}`} testId="month-averages">
-            <div className="stats">
-              <div className="stat">
-                <div className="label">Calories</div>
-                <div className="value" data-testid="month-avg-kcal">
-                  {kcal(m.averages.kcal)}
-                </div>
-                {m.targetKcal && <div className="note">target {kcal(m.targetKcal)}</div>}
-              </div>
-              <div className="stat">
-                <div className="label">Protein</div>
-                <div className="value">{grams(m.averages.protein_g)}</div>
-              </div>
-              <div className="stat">
-                <div className="label">Carbs</div>
-                <div className="value">{grams(m.averages.carbs_g)}</div>
-              </div>
-              <div className="stat">
-                <div className="label">Fat</div>
-                <div className="value">{grams(m.averages.fat_g)}</div>
-              </div>
-              <div className="stat">
-                <div className="label">Fiber</div>
-                <div className="value">{grams(m.averages.fiber_g)}</div>
-              </div>
-              <div className="stat">
-                <div className="label">On target</div>
-                <div className="value">{m.daysOnTarget} days</div>
-                <div className="note">{m.daysOver} over</div>
-              </div>
+            <div className="avg-hero">
+              <span className="v" data-testid="month-avg-kcal">
+                {kcal(m.averages.kcal)}
+              </span>
+              <span className="u">kcal a day</span>
+              {m.targetKcal && <span className="badge">target {kcal(m.targetKcal)}</span>}
             </div>
+            <MiniStats
+              testId="month-macros"
+              items={[
+                { k: 'Protein', v: Math.round(m.averages.protein_g), u: 'g' },
+                { k: 'Carbs', v: Math.round(m.averages.carbs_g), u: 'g' },
+                { k: 'Fat', v: Math.round(m.averages.fat_g), u: 'g' },
+                { k: 'Fiber', v: Math.round(m.averages.fiber_g), u: 'g' },
+              ]}
+            />
+            <MiniStats
+              testId="month-days"
+              items={[
+                { k: 'On target', v: m.daysOnTarget, u: m.daysOnTarget === 1 ? 'day' : 'days' },
+                { k: 'Over', v: m.daysOver, u: m.daysOver === 1 ? 'day' : 'days' },
+              ]}
+            />
           </Card>
           <ChartCard
             title="Daily calories"

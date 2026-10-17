@@ -11,10 +11,13 @@ test('Home cards: a profile seeded with 60 days renders every card without error
   const errors = watchConsole(page);
   await page.goto('/');
   await selectProfile(page, 'meera');
-  for (const id of ['card-today', 'card-macros', 'card-meals', 'card-last7', 'card-weight', 'card-energy', 'card-bodycomp', 'card-waist', 'card-protein', 'card-streak', 'card-slots', 'card-top']) {
+  for (const id of ['card-today', 'card-macros', 'card-meals', 'card-last7', 'card-streak']) {
     await expect(page.getByTestId(id), id).toBeVisible();
   }
-  await expect(page.getByTestId('card-weight').locator('svg.recharts-surface')).toBeVisible();
+  // Removed from Home to cut clutter; the body charts now live on Body.
+  for (const id of ['card-energy', 'card-protein', 'card-slots', 'card-top', 'card-weight', 'card-bodycomp', 'card-waist']) {
+    await expect(page.getByTestId(id), id).toHaveCount(0);
+  }
   await expect(page.getByTestId('heatmap').locator('.cell[data-state="on"]').first()).toBeVisible();
   // Macro tiles flip between grams left and grams eaten on each tap.
   const protein = page.getByTestId('macro-protein');
@@ -25,6 +28,11 @@ test('Home cards: a profile seeded with 60 days renders every card without error
   await protein.click();
   await expect(protein).toContainText(/Protein (left|over)/);
   await expectNoHorizontalOverflow(page);
+  await page.getByTestId('nav-body').click();
+  for (const id of ['body-weight-card', 'body-measure-card', 'body-latest', 'card-weight', 'card-bodycomp', 'card-waist']) {
+    await expect(page.getByTestId(id), id).toBeVisible();
+  }
+  await expect(page.getByTestId('card-weight').locator('svg.recharts-surface')).toBeVisible();
   for (const path of ['/add', '/body', '/progress', '/progress?view=journey', '/settings', '/settings/foods', '/settings/calibration']) {
     await page.goto(path);
     await page.waitForLoadState('networkidle');
@@ -115,7 +123,7 @@ test('Add meal and question chips: pending → estimated, items and a question a
   await expect(page.getByTestId('questions')).toHaveCount(0);
 });
 
-test('Review and saved foods: grams rescale, save a household dal, swap to it, confirm; Home updates', async ({ page }) => {
+test('Review and saved foods: grams rescale, a household dal replaces the AI line, confirm; Home updates', async ({ page }) => {
   await page.goto('/');
   await selectProfile(page, 'arjun');
   // Save a household dal with real numbers first.
@@ -138,10 +146,13 @@ test('Review and saved foods: grams rescale, save a household dal, swap to it, c
   await expect(page.getByTestId('item-kcal-0')).toHaveText('185');
   await page.getByTestId('item-grams-0').fill('105');
   await expect(page.getByTestId('item-kcal-0')).toHaveText('278');
-  await page.getByTestId('item-swap-1').click();
+  // Swap and "Save as my food" are gone; replace a line by removing it and adding the saved food.
+  await expect(page.locator('[data-testid^=item-swap-], [data-testid^=item-save-]')).toHaveCount(0);
+  await page.getByTestId('item-remove-1').click();
+  await page.getByTestId('item-add').click();
   await page.getByTestId('food-picker').getByRole('button', { name: /Ghar ki dal/ }).click();
-  await expect(page.getByTestId('item-name-1')).toHaveText('Ghar ki dal');
-  await expect(page.getByTestId('item-kcal-1')).toHaveText('190');
+  await expect(page.getByTestId('item-name-2')).toHaveText('Ghar ki dal');
+  await expect(page.getByTestId('item-kcal-2')).toHaveText('190');
   const total = await page.getByTestId('review-total-kcal').innerText();
   await page.getByTestId('review-confirm').click();
   await expect(page.getByTestId('today-kcal')).toHaveText(total.replace(' kcal', ''));
@@ -200,21 +211,43 @@ test('Saved foods: one tap quick-adds the 3 PM shake', async ({ page }) => {
   await expect(page.getByTestId('foods-mine-list')).toContainText('3 PM shake');
   const before = Number((await (await page.request.get('/api/profiles/arjun/dashboard', { headers: { 'x-katori-date': today() } })).json()).today.totals.kcal);
   await page.getByTestId('nav-add').click();
+  // Saved foods have their own tab on Add meal: a list, not a sideways row of chips.
+  await page.getByTestId('add-mode-saved').click();
+  await expect(page.getByTestId('quick-add')).toContainText('1 glass, 350 g');
   await page.getByTestId('quick-add').getByRole('button', { name: /3 PM shake/ }).click();
   await expect(page.getByTestId('toast').filter({ hasText: 'Logged 3 PM shake' })).toBeVisible();
   await expect(page.getByTestId('today-kcal')).toHaveText((before + 240).toLocaleString('en-US'));
+  // The tab is remembered on this phone; the photo tab is one tap back.
+  await page.getByTestId('nav-add').click();
+  await expect(page.getByTestId('add-mode-saved')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByTestId('add-mode-new').click();
+  await expect(page.getByTestId('meal-note')).toBeVisible();
 });
 
 test('Body metrics: body fat, BMI and ratios match the unit-tested formulas', async ({ page }) => {
   await page.goto('/');
   await selectProfile(page, 'arjun');
   await page.getByTestId('nav-body').click();
+  // Weight: save one reading, then nudge it with − and update.
+  const saveWeight = page.getByTestId('body-save-weight');
+  await page.getByTestId('body-weight').fill('70.2');
+  await saveWeight.click();
+  await expect(saveWeight).toHaveText('Saved');
+  await expect(page.getByTestId('weight-saved')).toHaveText('Saved today');
+  await page.getByTestId('body-weight-minus').click();
+  await page.getByTestId('body-weight-minus').click();
+  await expect(page.getByTestId('body-weight')).toHaveValue('70.0');
+  await expect(saveWeight).toHaveText('Update weight');
+  await saveWeight.click();
+  await expect(saveWeight).toHaveText('Saved');
+  // Tape: its own card and button, so the weight above stays as saved.
   await page.getByTestId('body-add-hips').click();
-  await page.getByTestId('body-weight').fill('70');
   await page.getByTestId('body-neck').fill('38');
   await page.getByTestId('body-waist').fill('85');
   await page.getByTestId('body-hips').fill('96');
-  await page.getByTestId('body-save').click();
+  await page.getByTestId('body-save-measures').click();
+  await expect(page.getByTestId('body-save-measures')).toHaveText('Saved');
+  await expect(page.getByTestId('body-weight')).toHaveValue('70.0');
   await expect(page.getByTestId('latest-bf')).toHaveText('16.5%'); // unit test: 16.47
   await expect(page.getByTestId('latest-bmi')).toHaveText('22.1'); // 22.14
   await expect(page.getByTestId('latest-whtr')).toHaveText('0.48'); // 0.478
@@ -230,6 +263,7 @@ test('Month and Journey: backfilled weigh-ins since July give a trend and monthl
     const d = new Date(2026, 6, 1 + i);
     lines.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${(78 - i * 0.056).toFixed(1)}`);
   }
+  await page.getByTestId('body-backfill-toggle').click(); // tucked away: a one-time job
   await page.getByTestId('backfill-text').fill(lines.join('\n'));
   await expect(page.getByTestId('backfill-save')).toHaveText('Add 52 weigh-ins');
   await page.getByTestId('backfill-save').click();

@@ -237,6 +237,81 @@ export function Stepper({ value, onChange, step = 0.25, min = 0.25, max = 5, lab
   );
 }
 
+/**
+ * A number with − / + either side, for values that move a little each time (weight, waist).
+ * Starts from the last reading, so a typical update is a tap or two and Save.
+ */
+export function ValueStepper({
+  label,
+  unit,
+  value,
+  onChange,
+  step,
+  min,
+  max,
+  testId,
+  big = false,
+}: {
+  label: string;
+  unit: string;
+  value: number | null;
+  onChange: (v: number | null) => void;
+  step: number;
+  min: number;
+  max: number;
+  testId: string;
+  big?: boolean;
+}) {
+  const id = useId();
+  const decimals = String(step).split('.')[1]?.length ?? 0;
+  // Show steps of 0.1 as 66.0, not 66; what you type stays as typed.
+  const show = (v: number | null) => (v == null ? '' : v.toFixed(decimals));
+  const [text, setText] = useState(show(value));
+  useEffect(() => {
+    const parsed = text === '' ? null : Number(text);
+    if (parsed !== value) setText(show(value));
+  }, [value]);
+  const nudge = (dir: 1 | -1) => {
+    if (value == null) return;
+    const next = Number(Math.min(max, Math.max(min, Math.round((value + dir * step) / step) * step)).toFixed(decimals));
+    setText(show(next)); // update the field in the same render as the tap
+    onChange(next);
+  };
+  return (
+    <div className={`vstep${big ? ' vstep-big' : ''}`}>
+      <label htmlFor={id} className={big ? 'sr-only' : 'vstep-label'}>
+        {label}
+      </label>
+      <div className="vstep-row">
+        <button type="button" onClick={() => nudge(-1)} disabled={value == null || value <= min} aria-label={`${label} down ${step} ${unit}`} data-testid={`${testId}-minus`}>
+          −
+        </button>
+        <span className="vstep-value">
+          <input
+            id={id}
+            className="vstep-input"
+            type="number"
+            inputMode="decimal"
+            step="any"
+            value={text}
+            placeholder="–"
+            data-testid={testId}
+            onChange={(e) => {
+              setText(e.target.value);
+              const n = e.target.value === '' ? null : Number(e.target.value);
+              onChange(n != null && Number.isFinite(n) ? n : null);
+            }}
+          />
+          <span className="vstep-unit">{unit}</span>
+        </span>
+        <button type="button" onClick={() => nudge(1)} disabled={value == null || value >= max} aria-label={`${label} up ${step} ${unit}`} data-testid={`${testId}-plus`}>
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function Spinner({ label = 'Loading' }: { label?: string }) {
   return <div className="spinner" role="progressbar" aria-label={label} />;
 }

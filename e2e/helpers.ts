@@ -22,6 +22,19 @@ export function watchConsole(page: Page): string[] {
 export async function expectNoHorizontalOverflow(page: Page) {
   const { scroll, client } = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
   expect(scroll, 'page scrolls sideways at phone width').toBeLessThanOrEqual(client);
+  // Nothing inside scrolls sideways or cuts text off with "…" either (screen-reader-only text aside).
+  const problems = await page.evaluate(() =>
+    [...document.body.querySelectorAll('*')]
+      .filter((el) => !el.classList.contains('sr-only') && el.getBoundingClientRect().width > 0)
+      .filter((el) => {
+        const s = getComputedStyle(el);
+        const scrolls = (s.overflowX === 'auto' || s.overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 1;
+        const clipped = (s.overflowX === 'hidden' || s.textOverflow === 'ellipsis') && el.children.length === 0 && el.scrollWidth > el.clientWidth + 1;
+        return scrolls || clipped;
+      })
+      .map((el) => `${el.tagName.toLowerCase()}.${el.className} "${(el.textContent ?? '').trim().slice(0, 30)}"`),
+  );
+  expect(problems, 'rows that scroll sideways or text cut off').toEqual([]);
 }
 
 export async function selectProfile(page: Page, id: string) {

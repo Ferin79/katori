@@ -245,9 +245,7 @@ export function WeightCard({ d }: { d: D }) {
   if (!w.points.length) {
     return (
       <Card title="Weight trend" testId="card-weight">
-        <p className="muted">
-          Log a morning weigh-in on <Link to="/body">Body</Link> to start the trend.
-        </p>
+        <p className="muted">Save a weigh-in above to start the trend.</p>
       </Card>
     );
   }
@@ -292,12 +290,12 @@ export function WeightCard({ d }: { d: D }) {
             {w.goalKg != null && <ReferenceLine y={w.goalKg} stroke={C.ink2} strokeWidth={1} label={{ value: `Goal ${w.goalKg} kg`, position: 'insideBottomRight', fill: C.ink2, fontSize: 11 }} />}
             <Scatter dataKey="weightKg" fill={C.neutral} isAnimationActive={false} shape={(props: { cx?: number; cy?: number }) => <circle cx={props.cx} cy={props.cy} r={3} fill={C.neutral} />} />
             <defs>
-              <linearGradient id="wfill-home" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="wfill-body" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={C.weight} stopOpacity={0.3} />
                 <stop offset="100%" stopColor={C.weight} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <Area dataKey="trendKg" type="monotone" stroke="none" fill="url(#wfill-home)" isAnimationActive={false} activeDot={false} />
+            <Area dataKey="trendKg" type="monotone" stroke="none" fill="url(#wfill-body)" isAnimationActive={false} activeDot={false} />
             <Line dataKey="trendKg" type="monotone" stroke={C.weight} strokeWidth={2.5} dot={false} isAnimationActive={false} />
           </ComposedChart>
         </ResponsiveContainer>
@@ -313,60 +311,19 @@ export function WeightCard({ d }: { d: D }) {
   );
 }
 
-export function EnergyCard({ d }: { d: D }) {
-  const e = d.energy;
-  const rows = [
-    { key: 'intake', name: `Average intake (${e.loggedDays} of last ${e.windowDays} days)`, value: e.avgIntakeKcal },
-    { key: 'formula', name: 'Maintenance (formula)', value: e.formulaMaintenance },
-    { key: 'learned', name: 'Maintenance (learned from your trend)', value: e.learnedMaintenance },
-  ].filter((r): r is { key: string; name: string; value: number } => r.value != null);
-  const max = Math.max(1, ...rows.map((r) => r.value));
-  const maint = e.learnedMaintenance ?? e.formulaMaintenance;
-  const gap = e.avgIntakeKcal != null && maint != null ? e.avgIntakeKcal - maint : null;
-  return (
-    <Card
-      title="Energy balance"
-      subtitle={
-        gap != null
-          ? `Eating about ${kcal(Math.abs(gap))} kcal a day ${gap < 0 ? 'below' : 'above'} maintenance ≈ ${num1(Math.abs((gap * 7) / 7700))} kg a week ${gap < 0 ? 'down' : 'up'}.`
-          : e.learnedMaintenance == null
-            ? 'Learned maintenance appears after 3 weeks of logging.'
-            : undefined
-      }
-      testId="card-energy"
-    >
-      <div className="bar-rows">
-        {rows.map((r) => (
-          <div className="bar-row" key={r.key} data-testid={`energy-${r.key}`}>
-            <div className="top">
-              <span className="key">{r.name}</span>
-              <span className="val">{kcal(r.value)} kcal</span>
-            </div>
-            <div className="bar-track">
-              <div className="bar-fill" style={{ width: `${(r.value / max) * 100}%`, background: C.kcal }} />
-            </div>
-          </div>
-        ))}
-        {!rows.length && <p className="muted">Log a few days of meals to see this.</p>}
-      </div>
-    </Card>
-  );
+function deltaTone(n: number, goodWhenDown: boolean): 'good' | 'bad' | undefined {
+  if (n === 0) return undefined;
+  return (n < 0) === goodWhenDown ? 'good' : 'bad';
 }
 
-function deltaClass(n: number | null, goodWhenDown: boolean) {
-  if (n == null || n === 0) return '';
-  return (n < 0) === goodWhenDown ? 'delta-good' : 'delta-bad';
-}
-
+/** Body fat over time. The latest reading itself sits in "Your numbers" above. */
 export function BodyCompCard({ d }: { d: D }) {
   if (!d.body) return null;
   const pts = d.body.points;
   if (!pts.length) {
     return (
-      <Card title="Body composition" testId="card-bodycomp">
-        <p className="muted">
-          Add neck and waist measurements (and hips for women) on <Link to="/body">Body</Link> for a Navy body fat estimate.
-        </p>
+      <Card title="Body fat" testId="card-bodycomp">
+        <p className="muted">Save neck and waist (and hips for women) above for a body fat estimate.</p>
       </Card>
     );
   }
@@ -375,28 +332,19 @@ export function BodyCompCard({ d }: { d: D }) {
   const data = pts.map((p) => ({ ...p, t: dayMs(p.date) }));
   return (
     <ChartCard
-      title="Body composition"
-      subtitle="US Navy estimate from tape measurements; read the trend, not one reading"
+      title="Body fat"
+      subtitle="US Navy estimate from the tape; read the trend, not one reading"
       testId="card-bodycomp"
       table={{ head: ['Date', 'Body fat', 'Fat mass', 'Lean mass'], rows: [...pts].reverse().map((p) => [dayMonth(p.date), pct(p.bodyFatPct), kg(p.fatMassKg), kg(p.leanMassKg)]) }}
     >
-      <div className="stats" style={{ marginBottom: 12 }}>
-        <div className="stat" data-testid="bf-latest">
-          <div className="label">Body fat</div>
-          <div className="value">{pct(last.bodyFatPct)}</div>
-          <div className={`note ${deltaClass(last.bodyFatPct - start.bodyFatPct, true)}`}>{pts.length > 1 ? `${signed(last.bodyFatPct - start.bodyFatPct, ' pts')} since ${dayMonth(start.date)}` : 'first reading'}</div>
-        </div>
-        <div className="stat">
-          <div className="label">Fat mass</div>
-          <div className="value">{kg(last.fatMassKg)}</div>
-          <div className={`note ${deltaClass(last.fatMassKg - start.fatMassKg, true)}`}>{pts.length > 1 ? signed(last.fatMassKg - start.fatMassKg, ' kg') : ''}</div>
-        </div>
-        <div className="stat">
-          <div className="label">Lean mass</div>
-          <div className="value">{kg(last.leanMassKg)}</div>
-          <div className={`note ${deltaClass(last.leanMassKg - start.leanMassKg, false)}`}>{pts.length > 1 ? signed(last.leanMassKg - start.leanMassKg, ' kg') : ''}</div>
-        </div>
-      </div>
+      <MiniStats
+        testId="bf-figures"
+        items={[
+          { k: 'Fat mass', v: num1(last.fatMassKg), u: 'kg' },
+          { k: 'Lean mass', v: num1(last.leanMassKg), u: 'kg' },
+          ...(pts.length > 1 ? [{ k: `Since ${dayMonth(start.date)}`, v: signed(last.bodyFatPct - start.bodyFatPct), u: 'pts', tone: deltaTone(last.bodyFatPct - start.bodyFatPct, true) }] : []),
+        ]}
+      />
       {pts.length > 1 && (
         <div className="chart" style={{ height: 160 }}>
           <ResponsiveContainer>
@@ -418,38 +366,33 @@ export function BodyCompCard({ d }: { d: D }) {
   );
 }
 
+/** Waist over time: belly progress when the scale stalls. */
 export function WaistCard({ d }: { d: D }) {
   const w = d.waist;
+  if (!w.points.length) {
+    return (
+      <Card title="Waist" testId="card-waist">
+        <p className="muted">Save a waist measurement above to start this chart.</p>
+      </Card>
+    );
+  }
+  const first0 = w.points[0]!;
+  const last = w.points.at(-1)!;
   const data = w.points.map((p) => ({ ...p, t: dayMs(p.date) }));
   return (
     <ChartCard
-      title="Waist and ratios"
+      title="Waist"
       subtitle="Belly progress when the scale stalls"
       testId="card-waist"
-      table={w.points.length ? { head: ['Date', 'Waist'], rows: [...w.points].reverse().map((p) => [dayMonth(p.date), `${num1(p.waistCm)} cm`]) } : null}
+      table={{ head: ['Date', 'Waist'], rows: [...w.points].reverse().map((p) => [dayMonth(p.date), `${num1(p.waistCm)} cm`]) }}
     >
-      <div className="stats" style={{ marginBottom: w.points.length > 1 ? 12 : 0 }}>
-        <div className="stat" data-testid="waist-latest">
-          <div className="label">Waist</div>
-          <div className="value">{w.latest.waistCm != null ? `${num1(w.latest.waistCm)} cm` : '–'}</div>
-        </div>
-        <div className="stat" data-testid="whtr">
-          <div className="label">Waist ÷ height</div>
-          <div className="value">{w.latest.waistToHeight != null ? w.latest.waistToHeight.toFixed(2) : '–'}</div>
-          {w.latest.waistToHeight != null && <div className="note">{w.latest.waistToHeight < 0.5 ? 'under 0.5 ✓' : 'aim for under 0.5'}</div>}
-        </div>
-        {w.latest.waistToHip != null && (
-          <div className="stat" data-testid="whr">
-            <div className="label">Waist ÷ hip</div>
-            <div className="value">{w.latest.waistToHip.toFixed(2)}</div>
-          </div>
-        )}
-        <div className="stat" data-testid="bmi">
-          <div className="label">BMI</div>
-          <div className="value">{num1(w.latest.bmi)}</div>
-          {w.latest.bmiCategory && <div className="note">{w.latest.bmiCategory}</div>}
-        </div>
-      </div>
+      <MiniStats
+        testId="waist-figures"
+        items={[
+          { k: 'Latest', v: num1(last.waistCm), u: 'cm' },
+          ...(w.points.length > 1 ? [{ k: `Since ${dayMonth(first0.date)}`, v: signed(last.waistCm - first0.waistCm), u: 'cm', tone: deltaTone(last.waistCm - first0.waistCm, true) }] : []),
+        ]}
+      />
       {w.points.length > 1 && (
         <div className="chart" style={{ height: 150 }}>
           <ResponsiveContainer>
@@ -464,39 +407,6 @@ export function WaistCard({ d }: { d: D }) {
         </div>
       )}
     </ChartCard>
-  );
-}
-
-export function ProteinCard({ d }: { d: D }) {
-  const p = d.protein;
-  const meter = (hit: number, of: number) => (
-    <div className="bar-track" role="meter" aria-valuemin={0} aria-valuemax={of} aria-valuenow={hit}>
-      <div className="bar-fill" style={{ width: `${of ? (hit / of) * 100 : 0}%`, background: C.protein }} />
-    </div>
-  );
-  return (
-    <Card title="Protein consistency" subtitle={p.targetG ? `Days within 5% of ${p.targetG} g` : undefined} testId="card-protein">
-      <div className="bar-rows">
-        <div className="bar-row" data-testid="protein-week">
-          <div className="top">
-            <span className="key">This week</span>
-            <span className="val">
-              {p.weekHit} of {p.weekDays} days
-            </span>
-          </div>
-          {meter(p.weekHit, p.weekDays)}
-        </div>
-        <div className="bar-row" data-testid="protein-month">
-          <div className="top">
-            <span className="key">This month</span>
-            <span className="val">
-              {p.monthHit} of {p.monthDays} days
-            </span>
-          </div>
-          {meter(p.monthHit, p.monthDays)}
-        </div>
-      </div>
-    </Card>
   );
 }
 
@@ -557,68 +467,3 @@ export function StreakCard({ d }: { d: D }) {
     </Card>
   );
 }
-
-export function SlotsCard({ d }: { d: D }) {
-  const max = Math.max(1, ...d.slots.map((s) => s.avgKcal));
-  return (
-    <Card title="Meal slots" subtitle="Average calories per logged day, last 30 days" testId="card-slots">
-      {d.slots.length === 0 ? (
-        <p className="muted">No meals in the last 30 days.</p>
-      ) : (
-        <div className="bar-rows">
-          {d.slots.map((s) => (
-            <div className="bar-row" key={s.name} data-testid={`slot-${s.name}`}>
-              <div className="top">
-                <span className="key">{s.name}</span>
-                <span className="val">
-                  {kcal(s.avgKcal)} kcal <span className="muted">({Math.round(s.share * 100)}%)</span>
-                </span>
-              </div>
-              <div className="bar-track">
-                <div className="bar-fill" style={{ width: `${(s.avgKcal / max) * 100}%`, background: C.kcal }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
-  );
-}
-
-export function TopCard({ d }: { d: D }) {
-  return (
-    <Card title="Top contributors" subtitle="This month" testId="card-top">
-      {d.top.byKcal.length === 0 ? (
-        <p className="muted">Nothing logged this month yet.</p>
-      ) : (
-        <div className="grid-2" style={{ alignItems: 'start' }}>
-          <div>
-            <h3 className="small muted" style={{ marginBottom: 6 }}>
-              Most calories
-            </h3>
-            <ol className="small" style={{ margin: 0, paddingLeft: 18 }} data-testid="top-kcal">
-              {d.top.byKcal.map((t) => (
-                <li key={t.name}>
-                  {t.name} <span className="muted">{kcal(t.kcal)}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-          <div>
-            <h3 className="small muted" style={{ marginBottom: 6 }}>
-              Most protein
-            </h3>
-            <ol className="small" style={{ margin: 0, paddingLeft: 18 }} data-testid="top-protein">
-              {d.top.byProtein.map((t) => (
-                <li key={t.name}>
-                  {t.name} <span className="muted">{num1(t.protein_g)} g</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </div>
-      )}
-    </Card>
-  );
-}
-
